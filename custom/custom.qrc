@@ -1,0 +1,14 @@
+<RCC>
+    <qresource prefix="/qmlimages">
+        <file alias="swarm.svg">res/Images/swarm.svg</file>
+        <file alias="mrws1.png">res/Images/mrws1.png</file>
+        <file alias="mrws2.png">res/Images/mrws2.png</file>
+        <file alias="mrws4.png">res/Images/mrws4.png</file>
+        <file alias="PaperPlane.svg">res/Images/CustomVehicleIcon.svg</file>
+        <file alias="MerivusSafetyGNSS.svg">res/Images/MerivusSafetyGNSS.svg</file>
+        <file alias="MerivusSafetyTCP.svg">res/Images/MerivusSafetyTCP.svg</file>
+    </qresource>
+    <qresource prefix="custom/img">
+        <file alias="CustomAppIcon.png">res/Images/CustomAppIcon.png</file>
+    </qresource>
+</RCC>
