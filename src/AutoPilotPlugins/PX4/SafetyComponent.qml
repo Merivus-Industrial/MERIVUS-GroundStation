@@ -51,6 +51,9 @@ SetupPage {
             property Fact _lowBattAction:       controller.getParameterFact(-1, "COM_LOW_BAT_ACT")
             property Fact _rcLossAction:        controller.getParameterFact(-1, "NAV_RCL_ACT")
             property Fact _dlLossAction:        controller.getParameterFact(-1, "NAV_DLL_ACT")
+            property Fact _dlLossTimeout:       controller.getParameterFact(-1, "COM_DL_LOSS_T")
+            property Fact _navLossAction:       controller.getParameterFact(-1, "COM_POSCTL_NAVL")
+            property Fact _navLossDelay:        controller.getParameterFact(-1, "COM_POS_FS_DELAY")
             property Fact _disarmLandDelay:     controller.getParameterFact(-1, "COM_DISARM_LAND")
             property Fact _collisionPrevention: controller.getParameterFact(-1, "CP_DIST")
             property Fact _objectAvoidance:     controller.getParameterFact(-1, "COM_OBS_AVOID")
@@ -58,14 +61,10 @@ SetupPage {
             property bool _hitlAvailable:       controller.parameterExists(-1, hitlParam)
             property Fact _hitlEnabled:         controller.getParameterFact(-1, hitlParam, false)
 
-            // TODO: Replace these pending values with PX4 Facts or QGC backend status properties in later phases.
             readonly property string _pendingIntegrationText: qsTr("Pending integration")
-            readonly property var _pendingEnableModel:        [ _pendingIntegrationText, qsTr("Disabled"), qsTr("Enabled") ]
-            readonly property var _backupPositionSourceModel: [ _pendingIntegrationText, qsTr("Auto Select"), qsTr("Visual-Inertial Odometry (VIO)"), qsTr("Optical Flow"), qsTr("Offline Map Visual Positioning") ]
-            readonly property var _backupSuccessActionModel:  [ _pendingIntegrationText, qsTr("Continue Mission"), qsTr("Speed-Limited Return"), qsTr("Hold") ]
-            readonly property var _backupFailureActionModel:  [ _pendingIntegrationText, qsTr("Hold"), qsTr("Return"), qsTr("Land") ]
-            readonly property var _tcpLossActionModel:        [ _pendingIntegrationText, qsTr("Continue Local Mission"), qsTr("Hold"), qsTr("Return"), qsTr("Land") ]
-            readonly property var _tcpRecoveryActionModel:    [ _pendingIntegrationText, qsTr("Auto Resume"), qsTr("Wait For Operator Confirmation") ]
+            readonly property string _tcpStatusPendingText:   qsTr("Pending MERIVUS TCP status")
+            readonly property string _tcpTimeoutPendingText:  qsTr("Pending MERIVUS heartbeat timeout")
+            readonly property string _tcpLossResponseText:    qsTr("Return via MERIVUS while MAVLink is alive")
 
             ColumnLayout {
                 id:         outerColumn
@@ -172,7 +171,7 @@ SetupPage {
                 }
 
                 QGCLabel {
-                    text:                   qsTr("GNSS and Visual Positioning Failsafe")
+                    text:                   qsTr("GNSS / Navigation Loss Failsafe")
                 }
 
                 Rectangle {
@@ -200,134 +199,39 @@ SetupPage {
                             anchors.verticalCenter: parent.verticalCenter
 
                             QGCLabel {
-                                text:               qsTr("GNSS Failsafe:")
+                                text:               qsTr("Navigation Loss Action:")
                                 Layout.minimumWidth:_labelWidth
                                 Layout.fillWidth:   true
                             }
-                            QGCComboBox {
-                                id:                 gnssFailsafeCombo
-                                // TODO: Bind to a real visual/GNSS failsafe enable Fact or backend property.
-                                model:              _pendingEnableModel
-                                enabled:            false
-                                currentIndex:       0
+                            FactComboBox {
+                                fact:               _navLossAction
+                                indexModel:         false
                                 Layout.minimumWidth:_editFieldWidth
                                 Layout.fillWidth:   true
                             }
 
                             QGCLabel {
-                                text:               qsTr("GNSS Loss Timeout:")
+                                text:               qsTr("Navigation Loss Delay:")
                                 Layout.fillWidth:   true
                             }
-                            QGCLabel {
-                                // TODO: Bind to GNSS validity timeout from PX4/QGC backend.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Backup Position Source:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCComboBox {
-                                id:                 backupPositionSourceCombo
-                                // TODO: Bind to backup positioning source setting when available.
-                                model:              _backupPositionSourceModel
-                                enabled:            false
-                                currentIndex:       0
+                            FactTextField {
+                                fact:               _navLossDelay
                                 Layout.fillWidth:   true
                             }
 
                             QGCLabel {
-                                text:               qsTr("Minimum Visual Confidence:")
+                                text:               qsTr("Backup Positioning:")
                                 Layout.fillWidth:   true
                             }
                             QGCLabel {
-                                // TODO: Bind to visual positioning confidence from backend status.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Max GNSS-Free Time:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to custom GNSS-free timeout Fact.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Max GNSS-Free Radius:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to custom GNSS-free radius Fact.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Action After Backup Success:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCComboBox {
-                                id:                 backupSuccessActionCombo
-                                // TODO: Bind to validated visual-positioning-success action.
-                                model:              _backupSuccessActionModel
-                                enabled:            false
-                                currentIndex:       0
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Action After Backup Failure:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCComboBox {
-                                id:                 backupFailureActionCombo
-                                // TODO: Bind to validated visual-positioning-failure action.
-                                model:              _backupFailureActionModel
-                                enabled:            false
-                                currentIndex:       0
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Current Position Source:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to current estimator/source status from PX4 EKF2 or QGC backend.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Visual Positioning Status:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to VIO/optical-flow health and freshness from backend status.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Offline Map Status:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to offline map package and matching confidence from backend status.
-                                text:               _pendingIntegrationText
+                                text:               qsTr("Handled by PX4 estimator inputs")
                                 Layout.fillWidth:   true
                             }
                         }
                     }
                 }
-
                 QGCLabel {
-                    text:                   qsTr("IoT TCP Communication Failsafe")
+                    text:                   qsTr("IoT TCP / MAVLink Link Failsafe")
                 }
 
                 Rectangle {
@@ -360,8 +264,7 @@ SetupPage {
                                 Layout.fillWidth:   true
                             }
                             QGCLabel {
-                                // TODO: Bind to QGC cloud TCP connection state.
-                                text:               _pendingIntegrationText
+                                text:               _tcpStatusPendingText
                                 Layout.minimumWidth:_editFieldWidth
                                 Layout.fillWidth:   true
                             }
@@ -371,86 +274,35 @@ SetupPage {
                                 Layout.fillWidth:   true
                             }
                             QGCLabel {
-                                // TODO: Bind to TCP heartbeat timeout setting or backend property.
-                                text:               _pendingIntegrationText
+                                text:               _tcpTimeoutPendingText
                                 Layout.fillWidth:   true
                             }
 
                             QGCLabel {
-                                text:               qsTr("Automatic Reconnect:")
+                                text:               qsTr("TCP Loss Response:")
                                 Layout.fillWidth:   true
                             }
-                            QGCComboBox {
-                                id:                 tcpReconnectCombo
-                                // TODO: Bind to TCP reconnect setting.
-                                model:              _pendingEnableModel
-                                enabled:            false
-                                currentIndex:       0
+                            QGCLabel {
+                                text:               _tcpLossResponseText
                                 Layout.fillWidth:   true
                             }
 
                             QGCLabel {
-                                text:               qsTr("Maximum Reconnect Attempts:")
+                                text:               qsTr("MAVLink Loss Action:")
                                 Layout.fillWidth:   true
                             }
-                            QGCLabel {
-                                // TODO: Bind to TCP reconnect limit.
-                                text:               _pendingIntegrationText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Maximum Offline Runtime:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to TCP-offline runtime limit.
-                                text:               _pendingIntegrationText
+                            FactComboBox {
+                                fact:               _dlLossAction
+                                indexModel:         false
                                 Layout.fillWidth:   true
                             }
 
                             QGCLabel {
-                                text:               qsTr("Action After TCP Loss:")
+                                text:               qsTr("MAVLink Loss Timeout:")
                                 Layout.fillWidth:   true
                             }
-                            QGCComboBox {
-                                id:                 tcpLossActionCombo
-                                // TODO: Bind to validated IoT TCP loss action.
-                                model:              _tcpLossActionModel
-                                enabled:            false
-                                currentIndex:       0
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Action After Network Recovery:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCComboBox {
-                                id:                 tcpRecoveryActionCombo
-                                // TODO: Bind to validated IoT TCP recovery action.
-                                model:              _tcpRecoveryActionModel
-                                enabled:            false
-                                currentIndex:       0
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("MAVLink Data Link:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                text:               qsTr("Configured by Data Link Loss below")
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Offboard Control Link:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                // TODO: Bind to companion/offboard heartbeat state when the backend exists.
-                                text:               qsTr("Separate from Cloud IoT TCP")
+                            FactTextField {
+                                fact:               _dlLossTimeout
                                 Layout.fillWidth:   true
                             }
                         }

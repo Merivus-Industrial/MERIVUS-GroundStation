@@ -31,6 +31,8 @@ FlightMap {
         id: swarmController
     }
 
+    QGCPalette { id: qgcPal; colorGroupEnabled: true }
+
     // ============================================================================
     // 区块 1：基础设置与状态管理 (画中画与基础属性)
     // ============================================================================
@@ -484,14 +486,14 @@ FlightMap {
                 height: labelText.height + 6
                 color: "#B3000000"
                 radius: 4
-                border.color: "#00FF33"
+                border.color: qgcPal.buttonHighlight
                 border.width: 1
 
                 Text {
                     id: labelText
                     anchors.centerIn: parent
                     text: "目标航点"
-                    color: "#00FF33"
+                    color: qgcPal.buttonHighlight
                     font.bold: true
                     font.pixelSize: ScreenTools.defaultFontPixelSize * 0.9
                 }
@@ -503,7 +505,7 @@ FlightMap {
                 width: 14
                 height: 14
                 radius: 7
-                color: "#00FF33"
+                color: qgcPal.buttonHighlight
                 border.color: "white"
                 border.width: 2
             }
@@ -514,7 +516,7 @@ FlightMap {
                 height: 30
                 radius: 15
                 color: "transparent"
-                border.color: "#00FF33"
+                border.color: qgcPal.buttonHighlight
                 border.width: 2
 
                 SequentialAnimation on scale {
@@ -641,7 +643,7 @@ FlightMap {
     MapPolyline {
         id:          shiftQueuePolyline
         line.width:  3
-        line.color:  _root.shiftQueuedCoords.length > 0 ? "#D8B56A" : "#00D6FF"
+        line.color:  _root.shiftQueuedCoords.length > 0 ? "#D8B56A" : qgcPal.buttonHighlight
         z:           QGroundControl.zOrderTrajectoryLines + 1
         visible:     !pipMode && (_root.shiftQueuedCoords.length > 0 || _root.shiftCommittedCoords.length > 0)
         path:        _root.shiftQueuedCoords.length > 0 ? _root.shiftQueuedCoords : _root.shiftCommittedCoords
@@ -659,7 +661,7 @@ FlightMap {
                 width: 18
                 height: 18
                 radius: 9
-                color: _root.shiftQueuedCoords.length > 0 ? "#D8B56A" : "#00D6FF"
+                color: _root.shiftQueuedCoords.length > 0 ? "#D8B56A" : qgcPal.buttonHighlight
                 border.color: "white"
                 border.width: 1
                 Text {
@@ -689,16 +691,31 @@ FlightMap {
     }
 
     // 框选视觉矩形（半透明深蓝底色 + 暗金边框）
+
     Rectangle {
         id: marqueeBox
         visible: false
-        color: "#2003182E"
-        border.color: _root.shiftQueuedCoords.length > 0 ? "#D8B56A" : "#00D6FF"
-        border.width: 1.5
+        radius: 8
+        color: "transparent"
+        border.color: _root.shiftQueuedCoords.length > 0 ? "#D8B56A" : qgcPal.buttonHighlight
+        border.width: 2
+        opacity: 0.0
         z: QGroundControl.zOrderTopMost + 100
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.24) }
+            GradientStop { position: 1.0; color: Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.06) }
+        }
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 4
+            radius: Math.max(2, parent.radius - 3)
+            color: "transparent"
+            border.color: Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.34)
+            border.width: 1
+        }
 
         Behavior on opacity {
-            NumberAnimation { duration: 150 }
+            NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
         }
     }
 
@@ -722,6 +739,7 @@ FlightMap {
         }
 
         // 左键点击弹出的快捷操作菜单
+
         Popup {
             id: clickMenu
             modal: true
@@ -806,7 +824,7 @@ FlightMap {
                 marqueeBox.y = mouse.y
                 marqueeBox.width = 0
                 marqueeBox.height = 0
-                marqueeBox.opacity = 1.0
+                marqueeBox.opacity = 0.92
                 isDrawingBox = true
                 _disableVehicleTracking = true
             } else if (mouse.button === Qt.RightButton) {
@@ -996,7 +1014,7 @@ FlightMap {
         _showSwarmCommandResult(result, "指点飞行")
     }
     function showMobaClickAnimation(coord, customColorStr) {
-        var finalColor = customColorStr ? customColorStr : "#00FF33" // 若不传参默认显示原有红绿风格的亮绿色
+        var finalColor = customColorStr ? customColorStr : qgcPal.buttonHighlight
         mobaClickIndicator.applyDynamicColor(finalColor)
 
         mobaClickIndicator.coordinate = coord
@@ -1013,49 +1031,94 @@ FlightMap {
         z: QGroundControl.zOrderTopMost
 
         function resetAndStart() {
-            outerRing.scale = 0.2
-            outerRing.opacity = 0.8
+            outerRing.scale = 0.25
+            outerRing.opacity = 0.72
+            middleRing.scale = 0.18
+            middleRing.opacity = 0.42
+            waypointHalo.opacity = 0.45
             clickAnimation.restart()
         }
 
-        // 【新增】提供给动画组件动态着色的外部槽接口
-        function applyDynamicColor(colorHex) {
-            innerCenterDot.color = colorHex
-            outerRing.border.color = colorHex
+        function applyDynamicColor(colorValue) {
+            waypointDot.color = colorValue
+            waypointStem.color = colorValue
+            waypointHalo.border.color = colorValue
+            middleRing.border.color = colorValue
+            outerRing.border.color = colorValue
         }
 
         sourceItem: Item {
-            width: 80
-            height: 80
+            width: 88
+            height: 88
 
             Rectangle {
-                id: innerCenterDot // 【新增 ID】便于动态调色
+                id: waypointHalo
                 anchors.centerIn: parent
-                width: 8
-                height: 8
-                radius: 4
-                color: "#00FF33"
+                width: 24
+                height: 24
+                radius: 12
+                color: "transparent"
+                border.color: qgcPal.buttonHighlight
+                border.width: 2
+                opacity: 0.45
+            }
+
+            Rectangle {
+                id: waypointStem
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.top: waypointDot.bottom
+                width: 2
+                height: 12
+                radius: 1
+                color: qgcPal.buttonHighlight
+                opacity: 0.9
+            }
+
+            Rectangle {
+                id: waypointDot
+                anchors.centerIn: parent
+                width: 9
+                height: 9
+                radius: 5
+                color: qgcPal.buttonHighlight
+                border.color: Qt.rgba(1, 1, 1, 0.72)
+                border.width: 1
+            }
+
+            Rectangle {
+                id: middleRing
+                anchors.centerIn: parent
+                width: 52
+                height: 52
+                radius: 26
+                color: "transparent"
+                border.color: qgcPal.buttonHighlight
+                border.width: 2
+                opacity: 0
             }
 
             Rectangle {
                 id: outerRing
                 anchors.centerIn: parent
-                width: 60
-                height: 60
-                radius: 30
+                width: 68
+                height: 68
+                radius: 34
                 color: "transparent"
-                border.color: "#00FF33"
-                border.width: 4
+                border.color: qgcPal.buttonHighlight
+                border.width: 3
                 opacity: 0
+            }
 
-                SequentialAnimation {
-                    id: clickAnimation
-                    ParallelAnimation {
-                        NumberAnimation { target: outerRing; property: "scale"; from: 0.2; to: 1.5; duration: 400; easing.type: Easing.OutBack }
-                        NumberAnimation { target: outerRing; property: "opacity"; from: 0.8; to: 0.0; duration: 400; easing.type: Easing.OutQuad }
-                    }
-                    onStopped: mobaClickIndicator.visible = false
+            SequentialAnimation {
+                id: clickAnimation
+                ParallelAnimation {
+                    NumberAnimation { target: middleRing; property: "scale"; from: 0.18; to: 1.25; duration: 520; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: middleRing; property: "opacity"; from: 0.42; to: 0.0; duration: 520; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: outerRing; property: "scale"; from: 0.25; to: 1.65; duration: 680; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: outerRing; property: "opacity"; from: 0.72; to: 0.0; duration: 680; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: waypointHalo; property: "opacity"; from: 0.45; to: 0.12; duration: 680; easing.type: Easing.OutQuad }
                 }
+                onStopped: mobaClickIndicator.visible = false
             }
         }
     }

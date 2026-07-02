@@ -28,7 +28,7 @@ Item {
     readonly property real resizeHandleThickness: 10
     readonly property real sidePanelMinHeight: 420
     readonly property real panelBottomLiftMin: 78
-    readonly property real leftPanelMinWidth: 300
+    readonly property real leftPanelMinWidth: 330
     readonly property real rightPanelMinWidth: 300
     readonly property real leftPanelMaxWidth: Math.max(leftPanelMinWidth, Math.min(480, width * 0.40))
     readonly property real rightPanelMaxWidth: Math.max(rightPanelMinWidth, Math.min(480, width * 0.40))
@@ -47,7 +47,7 @@ Item {
     property real rightPanelTopExtra: 3
     property real leftPanelBottomLift: 78
     property real rightPanelBottomLift: 78
-    property real leftPanelWidth: Math.min(390, width * 0.27)
+    property real leftPanelWidth: Math.min(420, width * 0.28)
     property real rightPanelWidth: Math.min(390, width * 0.27)
     property bool leftExpanded: true
     property bool rightExpanded: width >= 1280
@@ -56,6 +56,7 @@ Item {
     property int rightPanelVehicleId: -1
     property real altitudeCommandMeters: 10
     property real speedCommandMetersSecond: 5
+    property real climbCommandMetersSecond: 1.5
     property date now: new Date()
 
     visible: width > 900 && height > 560
@@ -248,17 +249,22 @@ function escFact(vehicle, prefix, motorIndex) {
     }
 
     function controlValueText(kind) {
-        return (kind === "altitude" ? altitudeCommandMeters : speedCommandMetersSecond).toFixed(1)
+        if (kind === "altitude") return altitudeCommandMeters.toFixed(1)
+        if (kind === "speed") return speedCommandMetersSecond.toFixed(1)
+        if (kind === "climb") return climbCommandMetersSecond.toFixed(1)
+        return "0.0"
     }
 
     function setControlValue(kind, value) {
         if (kind === "altitude") altitudeCommandMeters = numericInput(value, altitudeCommandMeters, -100, 100)
         else if (kind === "speed") speedCommandMetersSecond = numericInput(value, speedCommandMetersSecond, 0.1, 40)
+        else if (kind === "climb") climbCommandMetersSecond = numericInput(value, climbCommandMetersSecond, 0.1, 15)
     }
 
     function adjustControlValue(kind, delta) {
         if (kind === "altitude") altitudeCommandMeters = numericInput(altitudeCommandMeters + delta, altitudeCommandMeters, -100, 100)
         else if (kind === "speed") speedCommandMetersSecond = numericInput(speedCommandMetersSecond + delta, speedCommandMetersSecond, 0.1, 40)
+        else if (kind === "climb") climbCommandMetersSecond = numericInput(climbCommandMetersSecond + delta, climbCommandMetersSecond, 0.1, 15)
     }
 
     function canSendFocusCommand() {
@@ -275,6 +281,8 @@ function escFact(vehicle, prefix, motorIndex) {
         } else if (kind === "speed") {
             if (focusVehicle.fixedWing || focusVehicle.vtolInFwdFlight) focusVehicle.guidedModeChangeEquivalentAirspeedMetersSecond(speedCommandMetersSecond)
             else focusVehicle.guidedModeChangeGroundSpeedMetersSecond(speedCommandMetersSecond)
+        } else if (kind === "climb") {
+            focusVehicle.sendCommand(1, 178, true, 2, climbCommandMetersSecond, -1, 0, 0, 0, 0)
         }
     }
 
@@ -365,18 +373,28 @@ function escFact(vehicle, prefix, motorIndex) {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 38
-                radius: 4
-                color: qgcPal.windowShade
+                Layout.preferredHeight: 46
+                radius: 7
+                color: root.selectedCount() > 0 ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.18) : qgcPal.windowShade
                 border.color: root.selectedCount() > 0 ? root.accent : root.mutedLine
+                border.width: root.selectedCount() > 0 ? 2 : 1
+                Rectangle {
+                    visible: root.selectedCount() > 0
+                    anchors.left: parent.left
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 5
+                    radius: 3
+                    color: root.accent
+                }
                 QGCLabel {
                     anchors.fill: parent
-                    anchors.leftMargin: 9
+                    anchors.leftMargin: root.selectedCount() > 0 ? 14 : 9
                     anchors.rightMargin: 9
                     verticalAlignment: Text.AlignVCenter
                     text: root.selectedSummary()
                     color: root.selectedCount() > 0 ? root.accent : qgcPal.colorGrey
-                    font.pixelSize: 12
+                    font.pixelSize: root.selectedCount() > 0 ? 14 : 12
                     font.bold: root.selectedCount() > 0
                     elide: Text.ElideRight
                 }
@@ -477,16 +495,16 @@ function escFact(vehicle, prefix, motorIndex) {
                 rowSpacing: 5
                 Repeater {
                     model: [
-                        { label: tr("\u9ad8\u5ea6"), kind: "altitude", adjustable: true, value: root.metricText("altitude", 1, "m"), step: 1.0, unit: "m", tip: tr("高度增量命令：正值上升、负值下降，默认 10 m；点击下发后通过当前焦点飞行器发送。") },
-                        { label: tr("\u5730\u901f"), kind: "speed", adjustable: true, value: root.metricText("speed", 1, "m/s"), step: 0.5, unit: "m/s", tip: tr("目标速度命令：默认 5 m/s；多旋翼下发地速，固定翼/前飞 VTOL 下发等效空速。") },
-                        { label: tr("\u722c\u5347"), kind: "climb", adjustable: false, value: root.metricText("climb", 1, "m/s"), tip: tr("垂直速度（正值上升、负值下降；默认单位 m/s）") },
+                        { label: tr("\u9ad8\u5ea6"), kind: "altitude", adjustable: true, value: root.metricText("altitude", 1, "m"), step: 1.0, unit: "m", limitTop: 100, limitBottom: -100, tip: tr("高度增量命令：正值上升、负值下降，默认 10 m；点击下发后通过当前焦点飞行器发送。") },
+                        { label: tr("\u5730\u901f"), kind: "speed", adjustable: true, value: root.metricText("speed", 1, "m/s"), step: 0.5, unit: "m/s", limitTop: 40, limitBottom: 0.1, tip: tr("目标速度命令：默认 5 m/s；多旋翼下发地速，固定翼/前飞 VTOL 下发等效空速。") },
+                        { label: tr("\u722c\u5347"), kind: "climb", adjustable: true, value: root.metricText("climb", 1, "m/s"), step: 0.2, unit: "m/s", limitTop: 15, limitBottom: 0.1, tip: tr("目标爬升速度下发 MAV_CMD_DO_CHANGE_SPEED，speed type=2；实时值来自 VFR_HUD climb。") },
                         { label: tr("\u822a\u5411"), kind: "heading", adjustable: false, value: root.metricText("heading", 0, "\u00b0"), tip: tr("机头朝向（0/360 为北向）") },
                         { label: tr("\u7535\u6c60"), kind: "battery", adjustable: false, value: root.metricText("battery", 0, "%"), tip: tr("主电池剩余百分比") },
                         { label: "GPS", kind: "gps", adjustable: false, value: root.metricText("gps", 0, tr("\u661f")), tip: tr("GPS 可用卫星数量") }
                     ]
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 76
+                        Layout.preferredHeight: modelData.adjustable ? 102 : 58
                         radius: 5
                         color: paramTipMouse.containsMouse ? root.raisedColor : qgcPal.windowShade
                         border.color: modelData.adjustable ? (root.canSendFocusCommand() ? root.accent : root.mutedLine) : (paramTipMouse.containsMouse ? root.accent : root.mutedLine)
@@ -500,6 +518,15 @@ function escFact(vehicle, prefix, motorIndex) {
                                 text: modelData.label
                                 color: qgcPal.colorGrey
                                 font.pixelSize: 10
+                            }
+                            QGCLabel {
+                                Layout.fillWidth: true
+                                visible: modelData.adjustable
+                                horizontalAlignment: Text.AlignHCenter
+                                text: tr("实时") + " " + modelData.value
+                                color: root.accent
+                                font.bold: true
+                                font.pixelSize: 12
                             }
                             RowLayout {
                                 Layout.fillWidth: true
@@ -521,7 +548,7 @@ function escFact(vehicle, prefix, motorIndex) {
                                     text: root.controlValueText(modelData.kind)
                                     horizontalAlignment: Text.AlignHCenter
                                     font.pixelSize: 11
-                                    validator: DoubleValidator { bottom: modelData.kind === "altitude" ? -100 : 0.1; top: modelData.kind === "altitude" ? 100 : 40; decimals: 1 }
+                                    validator: DoubleValidator { bottom: modelData.adjustable ? modelData.limitBottom : 0; top: modelData.adjustable ? modelData.limitTop : 1; decimals: 1 }
                                     onEditingFinished: root.setControlValue(modelData.kind, text)
                                 }
                                 QGCButton {
@@ -668,10 +695,26 @@ function escFact(vehicle, prefix, motorIndex) {
                     font.bold: true
                     font.pixelSize: 13
                 }
-                QGCButton {
-                    text: tr("\u6e05\u9664")
+                Rectangle {
                     visible: root.selectedCount() > 0
-                    onClicked: root.clearSelectionRequested()
+                    Layout.preferredWidth: 54
+                    Layout.preferredHeight: 26
+                    radius: 8
+                    color: clearMouse.containsMouse ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22) : qgcPal.windowShade
+                    border.color: clearMouse.containsMouse ? root.accent : root.mutedLine
+                    QGCLabel {
+                        anchors.centerIn: parent
+                        text: tr("\u6e05\u9664")
+                        color: clearMouse.containsMouse ? root.accent : qgcPal.text
+                        font.bold: true
+                        font.pixelSize: 11
+                    }
+                    MouseArea {
+                        id: clearMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: root.clearSelectionRequested()
+                    }
                 }
             }
 
@@ -957,44 +1000,70 @@ function escFact(vehicle, prefix, motorIndex) {
                     }
                     RowLayout {
                         visible: root.selectedCount() > 1
-                        spacing: 4
+                        spacing: 2
                         Repeater {
                             model: root.selectedIds
-                            Rectangle {
-                                width: 58
-                                height: 26
-                                radius: 5
-                                color: root.rightVehicleSelected(modelData) ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.22) : qgcPal.windowShade
-                                border.color: root.rightVehicleSelected(modelData) ? root.accent : root.mutedLine
-                                Row {
-                                    anchors.centerIn: parent
-                                    spacing: 3
-                                    Rectangle {
-                                        width: 10
-                                        height: 10
-                                        radius: 2
-                                        color: root.rightVehicleSelected(modelData) ? root.accent : "transparent"
-                                        border.color: root.rightVehicleSelected(modelData) ? root.accent : qgcPal.colorGrey
-                                    }
-                                    QGCLabel { text: "UAV-" + modelData; color: root.rightVehicleSelected(modelData) ? root.accent : qgcPal.text; font.bold: true; font.pixelSize: 10 }
+                            CheckBox {
+                                id: rightVehicleOption
+                                text: "UAV-" + modelData
+                                checked: root.rightVehicleSelected(modelData)
+                                font.pixelSize: 10
+                                font.bold: checked
+                                onClicked: root.rightPanelVehicleId = modelData
+                                indicator: Rectangle {
+                                    implicitWidth: 12
+                                    implicitHeight: 12
+                                    x: 2
+                                    y: rightVehicleOption.height / 2 - height / 2
+                                    radius: 3
+                                    color: rightVehicleOption.checked ? root.accent : "transparent"
+                                    border.color: rightVehicleOption.checked ? root.accent : qgcPal.colorGrey
                                 }
-                                MouseArea { anchors.fill: parent; onClicked: root.rightPanelVehicleId = modelData }
+                                contentItem: Item {
+                                    implicitWidth: rightVehicleOptionLabel.implicitWidth + 20
+                                    implicitHeight: 20
+                                    QGCLabel {
+                                        id: rightVehicleOptionLabel
+                                        x: 18
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: rightVehicleOption.text
+                                        color: rightVehicleOption.checked ? root.accent : qgcPal.text
+                                        font.bold: rightVehicleOption.checked
+                                        font.pixelSize: 10
+                                    }
+                                }
                             }
                         }
                     }
-                    Rectangle {
+                    CheckBox {
+                        id: singleRightVehicleCheck
                         visible: root.selectedCount() <= 1
-                        Layout.preferredWidth: 70
-                        Layout.preferredHeight: 26
-                        radius: 5
-                        color: root.rightVehicle ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.18) : qgcPal.windowShade
-                        border.color: root.rightVehicle ? root.accent : root.mutedLine
-                        QGCLabel {
-                            anchors.centerIn: parent
-                            text: root.rightVehicle ? "UAV-" + root.rightVehicle.id : tr("无数据")
-                            color: root.rightVehicle ? root.accent : root.muted
-                            font.bold: true
-                            font.pixelSize: 11
+                        checked: root.rightVehicle !== null
+                        enabled: root.rightVehicle !== null
+                        text: root.rightVehicle ? "UAV-" + root.rightVehicle.id : tr("\u65e0\u6570\u636e")
+                        font.pixelSize: 11
+                        font.bold: true
+                        indicator: Rectangle {
+                            implicitWidth: 13
+                            implicitHeight: 13
+                            x: 2
+                            y: singleRightVehicleCheck.height / 2 - height / 2
+                            radius: 3
+                            color: singleRightVehicleCheck.checked ? root.accent : "transparent"
+                            border.color: singleRightVehicleCheck.checked ? root.accent : root.mutedLine
+                        }
+                        contentItem: Item {
+                            implicitWidth: singleRightVehicleLabel.implicitWidth + 22
+                            implicitHeight: 22
+                            QGCLabel {
+                                id: singleRightVehicleLabel
+                                x: 19
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: singleRightVehicleCheck.text
+                                color: singleRightVehicleCheck.checked ? root.accent : root.muted
+                                font.bold: true
+                                font.pixelSize: 11
+                            }
                         }
                     }
                     QGCButton {
