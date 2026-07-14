@@ -44,7 +44,7 @@ jobs:
           target:       desktop
           dir:          ${{ runner.temp }}
           modules:      qtcharts
-          setup-python: false
+          setup-python: true
 
       - name: Install Gstreamer
         run: |
