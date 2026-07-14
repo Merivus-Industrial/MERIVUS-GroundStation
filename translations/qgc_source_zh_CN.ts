@@ -15151,19 +15151,19 @@ Click the Next button to upload calibration to board. Click Cancel if you don&ap
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="107"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="107"/>
       <source>Battery Warn Level:</source>
-      <translation>电量警告水平：</translation>
+      <translation>电池警告阈值：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="116"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="116"/>
       <source>Battery Failsafe Level:</source>
-      <translation>电量故障保护水平：</translation>
+      <translation>电池故障保护阈值：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="125"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="125"/>
       <source>Battery Emergency Level:</source>
-      <translation>电量紧急水平：</translation>
+      <translation>电池紧急阈值：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="137"/>
@@ -15441,7 +15441,7 @@ Click the Next button to upload calibration to board. Click Cancel if you don&ap
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="175"/>
       <source>GNSS and Visual Positioning Failsafe</source>
-      <translation>GNSS 与视觉定位故障保护</translation>
+      <translation>GNSS / 视觉定位故障保护</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="201"/>
@@ -15501,7 +15501,7 @@ Click the Next button to upload calibration to board. Click Cancel if you don&ap
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="330"/>
       <source>IoT TCP Communication Failsafe</source>
-      <translation>物联网 TCP 通信故障保护</translation>
+      <translation>IoT TCP 通信故障保护</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="358"/>
@@ -15551,7 +15551,7 @@ Click the Next button to upload calibration to board. Click Cancel if you don&ap
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="448"/>
       <source>Offboard Control Link:</source>
-      <translation>机外控制链路：</translation>
+      <translation>外部控制链路：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="453"/>

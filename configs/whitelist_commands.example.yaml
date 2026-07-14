@@ -1,0 +1,27 @@
+version: 1
+read_only:
+  - vehicle.query_status
+  - vehicle.query_battery
+  - vehicle.query_position
+  - vehicle.query_rtk
+  - log.explain_error
+ui_only:
+  - ui.select_vehicle
+  - ui.open_page
+  - map.focus_coordinate
+mission_preview:
+  - mission.create_draft
+  - mission.analyze
+flight_preview_only:
+  - vehicle.arm
+  - vehicle.takeoff
+  - vehicle.land
+  - vehicle.rtl
+  - vehicle.pause
+  - vehicle.goto
+  - mission.upload
+  - mission.start
+denied:
+  - param.write
+  - mavlink.send_raw
+all_commands_are_non_executable: true

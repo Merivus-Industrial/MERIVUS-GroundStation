@@ -24,21 +24,42 @@ QGC_APP_DESCRIPTION = "MERIVUS Ground Control"
 QGC_APP_COPYRIGHT   = "Copyright (C) 2026 MERIVUS. All rights reserved."
 
 RESOURCES += \
-    $$PWD/custom.qrc
+    $$PWD/custom.qrc \
+    $$PWD/merivus_ai_panel.qrc
+
+# Qt 5.15 qmlcachegen crashes on the large MERIVUS AI panel after local edits;
+# keep this panel interpreted while preserving the same qrc runtime path.
+QTQUICK_COMPILER_SKIPPED_RESOURCES += $$PWD/merivus_ai_panel.qrc
 
 QML_IMPORT_PATH += \
    $$PWD/res
 
 SOURCES += \
+    $$PWD/src/Ai/ActionProposal.cc \
+    $$PWD/src/Ai/AiAgentClient.cc \
+    $$PWD/src/Ai/AiAuditEvent.cc \
+    $$PWD/src/Ai/AiCommandPolicy.cc \
+    $$PWD/src/Ai/AiSchemaValidator.cc \
+    $$PWD/src/Ai/AiServiceSupervisor.cc \
     $$PWD/src/CustomPlugin.cc \
+    $$PWD/src/Diagnostics/MerivusLinkDiagnostics.cc \
     $$PWD/src/Swarm/SwarmController.cc
 
 HEADERS += \
+    $$PWD/src/Ai/ActionProposal.h \
+    $$PWD/src/Ai/AiAgentClient.h \
+    $$PWD/src/Ai/AiAuditEvent.h \
+    $$PWD/src/Ai/AiCommandPolicy.h \
+    $$PWD/src/Ai/AiSchemaValidator.h \
+    $$PWD/src/Ai/AiServiceSupervisor.h \
     $$PWD/src/CustomPlugin.h \
+    $$PWD/src/Diagnostics/MerivusLinkDiagnostics.h \
     $$PWD/src/Swarm/SwarmController.h
 
 INCLUDEPATH += \
     $$PWD/src \
+    $$PWD/src/Ai \
+    $$PWD/src/Diagnostics \
     $$PWD/src/Swarm
 
 # Keep MSVC builds from failing on non-ASCII comments in upstream/source files.

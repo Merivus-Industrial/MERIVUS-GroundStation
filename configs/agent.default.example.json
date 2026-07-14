@@ -1,0 +1,18 @@
+{
+  "agent": {
+    "host": "127.0.0.1",
+    "port": 8765,
+    "provider": "mock"
+  },
+  "ollama": {
+    "base_url": "http://127.0.0.1:11434",
+    "model": "qwen3:8b",
+    "timeout_seconds": 60,
+    "allow_mock_fallback": false
+  },
+  "security": {
+    "external_network_enabled": false,
+    "flight_execution_enabled": false,
+    "write_tokens_to_disk": false
+  }
+}

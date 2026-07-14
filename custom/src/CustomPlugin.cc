@@ -23,6 +23,9 @@
 #include "AppMessages.h"
 #include "QmlComponentInfo.h"
 #include "QGCPalette.h"
+#include "AiAgentClient.h"
+#include "AiServiceSupervisor.h"
+#include "Diagnostics/MerivusLinkDiagnostics.h"
 #include "SwarmController.h"
 
 QGC_LOGGING_CATEGORY(CustomLog, "CustomLog")
@@ -75,6 +78,9 @@ bool CustomOptions::wifiReliableForCalibration(void) const
 CustomPlugin::CustomPlugin(QGCApplication *app, QGCToolbox* toolbox)
     : QGCCorePlugin(app, toolbox)
 {
+    qmlRegisterType<AiAgentClient>("Merivus", 1, 0, "AiAgentClient");
+    qmlRegisterType<AiServiceSupervisor>("Merivus", 1, 0, "AiServiceSupervisor");
+    qmlRegisterType<MerivusLinkDiagnostics>("Merivus", 1, 0, "MerivusLinkDiagnostics");
     qmlRegisterType<SwarmController>("Merivus", 1, 0, "SwarmController");
     _options = new CustomOptions(this, this);
     _showAdvancedUI = false;

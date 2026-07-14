@@ -3,6 +3,7 @@
 FlightDisplayViewWidgets        1.0 FlightDisplayViewWidgets.qml
 CommandCenterOverlay            1.0 CommandCenterOverlay.qml
 MerivusToolTip                 1.0 MerivusToolTip.qml
+MerivusAIAssistantPanel         1.0 MerivusAIAssistantPanel.qml
 FlyView                         1.0 FlyView.qml
 FlyViewCustomLayer              1.0 FlyViewCustomLayer.qml
 FlyViewInstrumentPanel          1.0 FlyViewInstrumentPanel.qml

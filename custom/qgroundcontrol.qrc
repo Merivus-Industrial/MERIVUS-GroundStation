@@ -1,4 +1,4 @@
-﻿<RCC>
+<RCC>
 	<qresource prefix="/unittest">
 		<file alias="FactSystemTest.qml">../src/FactSystem/FactSystemTest.qml</file>
 	</qresource>
@@ -211,6 +211,7 @@
 		<file alias="QGroundControl/FlightDisplay/FlyViewInstrumentPanel.qml">../src/FlightDisplay/FlyViewInstrumentPanel.qml</file>
 		<file alias="QGroundControl/FlightDisplay/CommandCenterOverlay.qml">res/Merivus/CommandCenterOverlay.qml</file>
 		<file alias="QGroundControl/FlightDisplay/MerivusToolTip.qml">res/Merivus/MerivusToolTip.qml</file>
+		<file alias="QGroundControl/FlightDisplay/ai-nine-star.svg">res/Merivus/ai-nine-star.svg</file>
 		<file alias="QGroundControl/FlightDisplay/FlyViewMap.qml">res/Merivus/FlyViewMap.qml</file>
 		<file alias="QGroundControl/FlightDisplay/FlyViewMissionCompleteDialog.qml">../src/FlightDisplay/FlyViewMissionCompleteDialog.qml</file>
 		<file alias="QGroundControl/FlightDisplay/FlyViewPreFlightChecklistPopup.qml">../src/FlightDisplay/FlyViewPreFlightChecklistPopup.qml</file>

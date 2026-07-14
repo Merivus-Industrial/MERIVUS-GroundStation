@@ -1,148 +1,129 @@
-# MERIVUS 无人机多机调度系统地面站
+# MERIVUS 无人机多机调度系统指挥中心
 
-MERIVUS 是面向多无人机协同作业场景设计的地面站软件。项目基于完全开源的 QGroundControl 技术体系进行二次开发，结合自研多机调度交互、编队控制界面、4G/TCP 网络链路显示、飞控状态管理与任务规划能力，形成服务于无人机多机调度系统的专用操作平台。
-
-本仓库为 MERIVUS Custom Build 的初始基线版本，重点沉淀地面站端 UI、调度交互、飞控链路、状态展示与后续智能化扩展能力。
+MERIVUS 是基于 QGroundControl / PX4 / 4G / RTK / 本机 AI Agent 的无人机多机调度地面站平台。本仓库保留 QGroundControl 上游工程结构，并在 `custom/`、`agent/`、`docs/`、`schemas/` 和 `configs/` 中沉淀 MERIVUS 的定制能力。
 
 ## 项目定位
 
-MERIVUS 位于无人机系统的人机交互与任务调度层，负责连接操作者、飞控固件和网络通信链路：
+MERIVUS 面向多无人机协同作业场景，负责地面站 UI、链路状态展示、调度交互、任务预览、AI 辅助解释和本地安全建议。它不替代飞控，不绕过 PX4 / QGC 原生安全流程，也不让 LLM 直接控制无人机。
 
 ```text
 操作者
   -> MERIVUS 地面站
-  -> MAVLink / TCP 链路
-  -> 二次开发 PX4 飞控固件
-  -> 多架无人机执行单元
+  -> Local Agent / ActionProposal
+  -> QGC C++ Schema Validator / Local Policy
+  -> 仅展示和预览
 ```
 
-系统目标不是替代飞控，而是在地面站侧提供更适合多机协同的任务组织、态势理解、指令预览、安全确认和状态回传能力。
-
-## 开源基础与自主扩展
-
-MERIVUS 复用 QGroundControl 成熟的地面站架构、Qt/QML 组件、MAVLink 通信能力、Vehicle 模型、地图能力与飞控接入流程，并在此基础上进行面向多无人机调度系统的定制开发。
-
-核心技术基础：
-
-- Qt 5.15.2 / QML / qmake；
-- QGroundControl 原生控件、Palette、Vehicle 模型与地图能力；
-- MAVLink 飞控通信协议；
-- 二次开发 PX4 飞控固件；
-- 4G 网络链路与 TCP 通信状态接入；
-- Windows 开发环境与 Linux SITL 测试环境。
-
-MERIVUS 自主设计与开发的方向包括：
-
-- 多无人机编队与主从跟随任务；
-- 框选、复选和类 MOBA 的多机指点调度交互；
-- 航点队列与快速航线规划；
-- 多机参数快速调整；
-- 面向调度任务的专业化主界面；
-- 环境、姿态、IMU、电机、ESC、视频链路等状态聚合显示；
-- 安全界面和故障保护卡片的补充完善；
-- 后续 AI 助手、参数解释、日志解析和数据库能力。
-
-## 当前核心能力
-
-### 多机连接与链路状态
-
-系统面向多架无人机同时接入场景，区分飞控连接、MAVLink 链路、TCP 网络链路、无人机数量、GPS/RTK、告警、日志和时间等状态，避免将通信状态、飞控状态和 UI 状态混为一体。
-
-### 编队飞行
-
-支持以主 ID 无人机为参考对象组织编队任务。其他 ID 号无人机可跟随主 ID 号无人机执行编队飞行。默认任务轨迹以正方形航线为基础，后续可扩展更多编队队形、任务模板和安全校验策略。
-
-### 多机调度交互
-
-MERIVUS 针对多目标操作设计了更接近实时策略类软件的交互方式：
-
-- 地图框选无人机；
-- 复选目标无人机；
-- 对选中无人机执行指点飞行；
-- 保持选中范围、目标数量和系统 ID 可见；
-- 为批量指令保留确认、预览和结果回传空间。
-
-### 航点队列与航线规划
-
-支持按住 Shift 进行连续航点下发和队列式任务规划，用于快速构建多点航线。后续可进一步扩展为任务队列、批量航线、撤销/重排、失败重试和逐机结果追踪。
-
-### 高度、速度与任务参数调节
-
-支持一键调节或数值自由调节高度、低速等关键任务参数。参数展示与控制入口将逐步从零散浮层整理为统一的飞机参数信息区，提升多机操作时的可读性和一致性。
-
-### 环境、姿态与设备状态显示
-
-主界面规划并逐步整合以下信息：
-
-- 环境信息：温度、湿度、风速、垂直风速、风向和数据来源；
-- 姿态信息：水平仪、指南针、航向显示；
-- 传感器信息：IMU、加速度计等状态；
-- 动力信息：电机转速、电流、电压、ESC 状态和异常标记；
-- 视频信息：网络链路视频流显示区域；
-- 安全信息：故障保护、告警、日志与关键状态入口。
-
-### 安全与故障保护
-
-系统保留 QGC 对飞控安全流程的基本原则，并在 MERIVUS 界面中强化多机任务下的状态可见性。涉及起飞、降落、返航、编队、批量下发、参数写入等操作时，应坚持明确目标、明确范围、明确确认、明确结果的设计原则。
-
-## 后续规划
-
-### 智能体与 AI 助手
-
-计划在地面站中接入 AI 聊天框，用于解释系统状态、辅助理解参数、生成任务草案和提供操作建议。AI 输出不得直接进入飞控命令链路，必须经过结构化意图、规则校验、确定性预览和操作者确认。
+当前 AI 链路不会进入：
 
 ```text
-自然语言
-  -> 结构化意图
-  -> 目标与安全校验
-  -> 指令预览
-  -> 操作者确认
-  -> 命令网关
-  -> QGC Vehicle / MAVLink API
-  -> 飞控执行与结果回传
+ActionProposal -> Vehicle / MAVLink / Swarm / PX4
 ```
 
-### 参数解释气泡
+## 当前已实现
 
-计划为飞控参数、配置项和关键状态增加全局半隐藏式说明气泡，类似浏览器翻译插件的轻量交互。用户选中参数后，可显示中文说明、来源、取值范围、风险提示和相关参考。
+- QGC Custom Build 主界面与 MERIVUS 多机调度 UI。
+- QGC AI 面板与中文建议卡。
+- Python FastAPI Local Agent。
+- QGC C++ `AiAgentClient`。
+- `AiServiceSupervisor`，由 QGC 启动和守护本机 Agent。
+- PyInstaller Agent 打包与 Release staging。
+- Mock Provider 与 Ollama / `qwen3:8b` Provider。
+- Provider 设置 UI、Provider Ready/Error/Models 展示。
+- `ActionProposal`、Agent schema、QGC C++ schema 校验。
+- `AiCommandPolicy` 本地风险和策略判定。
+- QA/指令分离：解释类问题不误出建议卡。
+- 模型 few-shot / eval 指标优化。
+- 所有 AI proposal 当前均保持 `executable=false`。
 
-### 文本到飞控指令
+## 当前未实现
 
-计划探索将受控输入文本转换为飞控操作意图。该能力必须限定在白名单命令、固定 schema、明确目标系统 ID、显式安全确认和完整审计记录之内，禁止将自由文本直接发送到 MAVLink 或 Vehicle 对象。
+- 云设备网关。
+- 用户认证和权限系统。
+- 数据库。
+- GIS Safety Service。
+- Media Service。
+- MCP。
+- 真实命令执行器。
+- 安装包签名。
+- 实机端到端验证。
 
-### 数据库与离线导航
+## 安全边界
 
-计划接入数据库，用于保存软件登录账号、权限、操作审计、离线导航数据、任务记录和设备状态快照。离线位置解算、导航数据回放和历史任务查询可在此基础上扩展。
-
-### 飞行日志解析
-
-计划集成 log 日志解析能力，减少“下载日志再导入外部工具”的流程成本。后续可在地面站内完成日志索引、异常摘要、关键事件提取、曲线查看和任务复盘。
+- LLM / Agent 不能直接控制无人机。
+- Agent 不发送 MAVLink。
+- Agent 不修改 PX4 参数。
+- Agent 不访问 Vehicle / Swarm / PX4 执行入口。
+- proposal 只是结构化建议，不代表执行结果。
+- QGC C++ 的 `AiSchemaValidator` 与 `AiCommandPolicy` 是当前 AI 链路最终安全边界。
+- 高风险动作只预览，不执行；当前没有 AI 真实飞行动作执行能力。
 
 ## 仓库结构
 
-MERIVUS 当前仍保留 QGC 上游目录结构，以降低二次开发、合并和验证成本。自定义扩展优先放置在 `custom/`、`custom/res/Merivus/`、`custom/src/`、`design-system/` 和项目文档目录中。
+- `src/`：QGroundControl 上游主体代码。
+- `custom/`：MERIVUS QGC Custom Build 入口、QML、资源和 C++ 扩展。
+- `agent/`：MERIVUS Local Agent、Provider、schema、测试和打包 spec。
+- `docs/`：架构、开发、硬件、流程和安全边界文档。
+- `schemas/`：Agent request / response / ActionProposal JSON Schema 草案。
+- `configs/`：配置模板和策略示例。
+- `tools/dev/`：Windows 构建、Agent 打包和局部测试脚本。
+- `custom/tests/`、`agent/tests/`：本地策略和 Agent 自动化测试。
 
-常用目录：
+更多文档入口见 [docs/INDEX.md](docs/INDEX.md)。
 
-- `custom/`：MERIVUS Custom Build 扩展入口；
-- `custom/res/Merivus/`：MERIVUS QML 主界面和定制组件；
-- `custom/src/`：MERIVUS C++ 扩展逻辑；
-- `design-system/`：界面设计规范；
-- `docs/`：开发、构建和工作流说明；
-- `tools/dev/`：开发环境检查与构建脚本。
+## 快速开发与验证
 
-## 开发与验证原则
+Windows 基线：
 
-- QML 负责呈现、输入和轻量视图状态；
-- 目标解析、队列、验证、持久化、通信和异步任务应放在 C++ 控制器或服务中；
-- 多机命令不得隐式广播，必须携带冻结的目标系统 ID 集合；
-- 真实无人机不得用于自动化命令测试；
-- 命令路径验证优先使用 Mock Link、PX4 SITL 或 ArduPilot SITL；
-- 不提交密钥、证书、APN、SIM、生产坐标、账号密码和本地构建产物；
-- UI 必须避免仅靠颜色表达状态。
+- Qt 5.15.2 / MSVC2019_64 Qt Kit。
+- Visual Studio 2022 MSVC x64 工具链。
+- Python 3.11。
+- Ollama 与本机 `qwen3:8b`。
 
-## 许可证与开源说明
+Agent 单元测试：
 
-MERIVUS 基于开源 QGroundControl 进行二次开发，并保留上游项目及第三方依赖的许可证约束。项目中的 QGC 原始代码、第三方库和 MERIVUS 定制代码的使用、分发和贡献规则请参见 [COPYING.md](COPYING.md) 与相关源文件中的许可证声明。
+```powershell
+cd agent
+python -m pytest
+```
 
-MERIVUS 的目标是在尊重开源协议的基础上形成面向多无人机调度系统的自主地面站软件。
+QGC AI 策略测试：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/dev/test-ai-intent-policy.ps1
+```
+
+Agent Release 打包：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/dev/build-agent.ps1 -Configuration Release
+```
+
+MERIVUS Release 构建：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/dev/build-merivus.ps1 -Configuration Release
+```
+
+本机真实模型评估必须显式 opt-in：
+
+```powershell
+python agent/tools/run_model_eval.py --provider ollama --model qwen3:8b
+```
+
+## 敏感文件与产物
+
+不要提交：
+
+- `.env`、Token、API Key、账号密码。
+- PDF、DOCX、Excel、截图、视频。
+- Ollama 模型、模型权重、本地模型目录。
+- `build/`、`dist/`、`staging/`、`.pytest_cache/`、`__pycache__/`。
+- RTSP 凭据、物联网卡信息、真实设备凭据。
+- 真实飞行日志或生产坐标。
+
+仓库应只提交源码、文档、schema、示例配置和必要资源。
+
+## 许可证与上游
+
+MERIVUS 基于开源 QGroundControl 二次开发，并保留上游项目和第三方依赖的许可证约束。相关规则见 [COPYING.md](COPYING.md) 与源文件中的许可证声明。

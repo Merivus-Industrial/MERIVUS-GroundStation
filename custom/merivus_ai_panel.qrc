@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/qml">
+        <file alias="QGroundControl/FlightDisplay/MerivusAIAssistantPanel.qml">res/Merivus/MerivusAIAssistantPanel.qml</file>
+    </qresource>
+</RCC>

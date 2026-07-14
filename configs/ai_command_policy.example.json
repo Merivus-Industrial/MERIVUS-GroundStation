@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "default_executable": false,
+  "risk_levels": {
+    "read_only": "Low",
+    "ui_only": "Low",
+    "mission_preview": "Medium",
+    "flight_affecting": "High",
+    "denied": "Critical"
+  },
+  "decisions": {
+    "read_only": "AllowReadOnly",
+    "ui_only": "AllowUiOnly",
+    "mission_preview": "PreviewOnly",
+    "flight_affecting": "PreviewOnly",
+    "denied": "Deny"
+  },
+  "notes": "示例文件只描述当前策略意图；实际策略由 QGC C++ AiCommandPolicy 执行。"
+}

@@ -35,6 +35,8 @@ private:
     void _dispatchTemporaryMission(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates, int delayMs);
     QList<MissionItem*> _buildTemporaryMissionItems(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates) const;
     double _relativeAltitudeMeters(Vehicle* vehicle, double fallbackMeters) const;
+    bool _legacyForwardingFeatureEnabled() const;
+    bool _autoStartMissionFeatureEnabled() const;
     void _ensureLegacyForwardingConnected();
     bool _sendLegacyStartPacket();
 

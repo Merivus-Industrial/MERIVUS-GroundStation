@@ -54,6 +54,10 @@ QVariantMap SwarmController::executeQueuedGoto(const QVariantList& selectedVehic
 
 QVariantMap SwarmController::sendStartCommand()
 {
+    if (!_legacyForwardingFeatureEnabled()) {
+        return _result(false, tr("Legacy swarm forwarding is disabled by safety containment."));
+    }
+
     _legacyForwardingEnabled = true;
     _ensureLegacyForwardingConnected();
 
@@ -284,7 +288,7 @@ void SwarmController::_dispatchTemporaryMission(Vehicle* vehicle, const QList<QG
             if (guardedMissionManager) {
                 disconnect(guardedMissionManager.data(), nullptr, this, nullptr);
             }
-            if (!error && guardedVehicle && guardedMissionManager) {
+            if (!error && guardedVehicle && guardedMissionManager && _autoStartMissionFeatureEnabled()) {
                 guardedVehicle->startMission();
             }
         });
@@ -352,8 +356,22 @@ double SwarmController::_relativeAltitudeMeters(Vehicle* vehicle, double fallbac
     return ok && std::isfinite(altitude) ? altitude : fallbackMeters;
 }
 
+bool SwarmController::_legacyForwardingFeatureEnabled() const
+{
+    return qEnvironmentVariableIntValue("MERIVUS_DEV_ENABLE_SWARM_LEGACY_FORWARDING") == 1;
+}
+
+bool SwarmController::_autoStartMissionFeatureEnabled() const
+{
+    return qEnvironmentVariableIntValue("MERIVUS_DEV_ENABLE_SWARM_AUTO_START_MISSION") == 1;
+}
+
 void SwarmController::_ensureLegacyForwardingConnected()
 {
+    if (!_legacyForwardingFeatureEnabled()) {
+        return;
+    }
+
     if (_legacyForwardingConnected) {
         return;
     }
@@ -367,6 +385,10 @@ void SwarmController::_ensureLegacyForwardingConnected()
 
 bool SwarmController::_sendLegacyStartPacket()
 {
+    if (!_legacyForwardingFeatureEnabled()) {
+        return false;
+    }
+
     MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
     if (!manager || !manager->vehicles()) {
         return false;
@@ -402,7 +424,7 @@ bool SwarmController::_sendLegacyStartPacket()
 
 void SwarmController::_receiveMessage(LinkInterface*, mavlink_message_t message)
 {
-    if (!_legacyForwardingEnabled || message.msgid != MAVLINK_MSG_ID_GPS_RAW_INT || message.sysid != 1) {
+    if (!_legacyForwardingFeatureEnabled() || !_legacyForwardingEnabled || message.msgid != MAVLINK_MSG_ID_GPS_RAW_INT || message.sysid != 1) {
         return;
     }
 

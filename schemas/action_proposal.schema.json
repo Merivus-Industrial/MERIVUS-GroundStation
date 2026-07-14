@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Ale-xl/MERIVUS/schemas/action_proposal.schema.json",
+  "title": "Merivus Action Proposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["command", "arguments", "summary"],
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": [
+        "vehicle.query_status",
+        "vehicle.query_battery",
+        "vehicle.query_position",
+        "vehicle.query_rtk",
+        "log.explain_error",
+        "ui.select_vehicle",
+        "ui.open_page",
+        "map.focus_coordinate",
+        "mission.create_draft",
+        "mission.analyze",
+        "vehicle.arm",
+        "vehicle.takeoff",
+        "vehicle.land",
+        "vehicle.rtl",
+        "vehicle.pause",
+        "vehicle.goto",
+        "mission.upload",
+        "mission.start",
+        "param.write",
+        "mavlink.send_raw"
+      ]
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "summary": { "type": "string", "minLength": 1 }
+  },
+  "not": {
+    "anyOf": [
+      { "required": ["executed"] },
+      { "required": ["executable"] },
+      { "required": ["risk"] },
+      { "required": ["localRisk"] },
+      { "required": ["policyDecision"] },
+      { "required": ["requiresConfirmation"] },
+      { "required": ["mavlink"] },
+      { "required": ["shell"] },
+      { "required": ["script"] },
+      { "required": ["px4_parameters"] }
+    ]
+  }
+}

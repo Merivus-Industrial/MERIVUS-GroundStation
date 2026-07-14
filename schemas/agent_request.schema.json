@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Ale-xl/MERIVUS/schemas/agent_request.schema.json",
+  "title": "Merivus Agent Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "session_id", "message", "context", "allowed_capabilities"],
+  "properties": {
+    "request_id": { "type": "string", "minLength": 1 },
+    "session_id": { "type": "string", "minLength": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "vehicle_count": { "type": ["integer", "null"], "minimum": 0 },
+        "active_vehicle_id": { "type": ["integer", "null"], "minimum": 1 },
+        "connected": { "type": ["boolean", "null"] },
+        "armed": { "type": ["boolean", "null"] },
+        "flight_mode": { "type": ["string", "null"] },
+        "battery_percent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+        "gps_valid": { "type": ["boolean", "null"] },
+        "rtk_fix_type": { "type": ["string", "null"] },
+        "link_state": { "type": ["string", "null"] }
+      }
+    },
+    "allowed_capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}

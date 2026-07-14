@@ -6,6 +6,7 @@ import QGroundControl             1.0
 import QGroundControl.Controls    1.0
 import QGroundControl.FlightDisplay 1.0
 import QGroundControl.Palette     1.0
+import Merivus                    1.0
 
 Rectangle {
     id: root
@@ -24,6 +25,10 @@ Rectangle {
     readonly property color criticalColor: qgcPal.colorRed
     readonly property color offlineColor: qgcPal.colorGrey
     readonly property bool compact: width < 1500
+
+    MerivusLinkDiagnostics {
+        id: linkDiagnostics
+    }
 
     function dropMessageIndicatorTool() {
         if (messageIndicatorLoader.item) messageIndicatorLoader.item.dropMessageIndicator()
@@ -53,6 +58,13 @@ Rectangle {
             QGroundControl.saveGlobalSetting("Merivus/AppSettingsPage", "qrc:/qml/LinkSettings.qml")
             mainWindow.showSettingsTool()
         }
+    }
+
+    function tcpStatusColor() {
+        if (linkDiagnostics.summaryState === "connected") return root.nominalColor
+        if (linkDiagnostics.summaryState === "connecting" || linkDiagnostics.summaryState === "configured_disconnected") return root.warningColor
+        if (linkDiagnostics.summaryState === "error") return root.criticalColor
+        return root.offlineColor
     }
 
     QGCPalette { id: qgcPal; colorGroupEnabled: true }
@@ -94,7 +106,7 @@ Rectangle {
             Repeater {
                 model: [
                     { icon: "/qmlimages/Link.svg", title: qsTr("飞控"), value: root.vehicleConnected ? qsTr("已连接") : (root.activeVehicle ? qsTr("异常") : qsTr("未连接")), color: root.vehicleConnected ? root.nominalColor : (root.activeVehicle ? root.criticalColor : root.offlineColor), action: "", tip: qsTr("飞控链路状态") },
-                    { icon: "/qmlimages/wifi.svg", title: "TCP", value: qsTr("未配置"), color: root.offlineColor, action: "network", tip: qsTr("打开通信设置") },
+                    { icon: "/qmlimages/wifi.svg", title: "TCP", value: linkDiagnostics.summaryText, color: root.tcpStatusColor(), action: "network", tip: linkDiagnostics.detailText },
                     { icon: "/qmlimages/Signal100.svg", title: qsTr("心跳"), value: root.vehicleConnected ? qsTr("正常") : qsTr("未连接"), color: root.vehicleConnected ? root.nominalColor : root.offlineColor, action: "", tip: qsTr("MAVLink 心跳状态") },
                     { icon: "/qmlimages/Gps.svg", title: "GPS/RTK", value: root.gpsStatusText(), color: root.vehicleConnected ? root.warningColor : root.offlineColor, action: "gps", tip: qsTr("查看定位摘要") },
                     { icon: root.messageCount > 0 ? "/qmlimages/Yield.svg" : "/qmlimages/Megaphone.svg", title: qsTr("消息"), value: root.messageCount > 0 ? qsTr("%1 条").arg(root.messageCount) : qsTr("正常"), color: root.messageCount > 0 ? root.warningColor : root.nominalColor, action: "alerts", tip: qsTr("打开飞行器消息") },

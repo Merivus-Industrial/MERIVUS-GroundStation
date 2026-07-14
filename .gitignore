@@ -91,6 +91,38 @@ Qt*-linux*.tar.*
 .codex/
 AGENTS.md
 
+# Python local agent
+agent/.venv/
+agent/dist/
+agent/build/
+agent/.pytest_cache/
+**/__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+!agent/.env.example
+staging/
+**/staging/
+
+# Local vendor hardware manuals are kept outside Git.
+docs/hardware/local-manuals/*.pdf
+docs/hardware/local-manuals/*.docx
+docs/hardware/local-manuals/*.xlsx
+docs/hardware/local-manuals/*.png
+docs/hardware/local-manuals/*.jpg
+
+# Local model files and vector stores are never committed.
+models/
+ollama/
+.ollama/
+agent/models/
+agent/.models/
+*.safetensors
+*.gguf
+*.bin
+*.onnx
+
 # Release signing credentials and store secrets
 *.keystore
 *.jks

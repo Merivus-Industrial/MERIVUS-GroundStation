@@ -495,9 +495,9 @@ function escFact(vehicle, prefix, motorIndex) {
                 rowSpacing: 5
                 Repeater {
                     model: [
-                        { label: tr("\u9ad8\u5ea6"), kind: "altitude", adjustable: true, value: root.metricText("altitude", 1, "m"), step: 1.0, unit: "m", limitTop: 100, limitBottom: -100, tip: tr("高度增量命令：正值上升、负值下降，默认 10 m；点击下发后通过当前焦点飞行器发送。") },
-                        { label: tr("\u5730\u901f"), kind: "speed", adjustable: true, value: root.metricText("speed", 1, "m/s"), step: 0.5, unit: "m/s", limitTop: 40, limitBottom: 0.1, tip: tr("目标速度命令：默认 5 m/s；多旋翼下发地速，固定翼/前飞 VTOL 下发等效空速。") },
-                        { label: tr("\u722c\u5347"), kind: "climb", adjustable: true, value: root.metricText("climb", 1, "m/s"), step: 0.2, unit: "m/s", limitTop: 15, limitBottom: 0.1, tip: tr("目标爬升速度下发 MAV_CMD_DO_CHANGE_SPEED，speed type=2；实时值来自 VFR_HUD climb。") },
+                        { label: tr("\u9ad8\u5ea6"), kind: "altitude", adjustable: true, value: root.metricText("altitude", 1, "m"), step: 1.0, unit: "m", limitTop: 100, limitBottom: -100, tip: tr("高度增量命令：正值上升、负值下降，默认 10 m") },
+                        { label: tr("\u5730\u901f"), kind: "speed", adjustable: true, value: root.metricText("speed", 1, "m/s"), step: 0.5, unit: "m/s", limitTop: 40, limitBottom: 0.1, tip: tr("目标速度命令：默认 5 m/s") },
+                        { label: tr("\u722c\u5347"), kind: "climb", adjustable: true, value: root.metricText("climb", 1, "m/s"), step: 0.2, unit: "m/s", limitTop: 15, limitBottom: 0.1, tip: tr("目标爬升速度") },
                         { label: tr("\u822a\u5411"), kind: "heading", adjustable: false, value: root.metricText("heading", 0, "\u00b0"), tip: tr("机头朝向（0/360 为北向）") },
                         { label: tr("\u7535\u6c60"), kind: "battery", adjustable: false, value: root.metricText("battery", 0, "%"), tip: tr("主电池剩余百分比") },
                         { label: "GPS", kind: "gps", adjustable: false, value: root.metricText("gps", 0, tr("\u661f")), tip: tr("GPS 可用卫星数量") }

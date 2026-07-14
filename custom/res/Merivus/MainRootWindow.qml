@@ -528,6 +528,11 @@ ApplicationWindow {
         }
     }
 
+    MerivusAIAssistantPanel {
+        id: aiAssistantPanel
+        anchors.fill: parent
+    }
+
     //-------------------------------------------------------------------------
     //-- Critical Vehicle Message Popup
 

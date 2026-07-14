@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Ale-xl/MERIVUS/schemas/agent_response.schema.json",
+  "title": "Merivus Agent Response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["request_id", "reply", "proposal", "provider", "model", "status"],
+  "properties": {
+    "request_id": { "type": "string", "minLength": 1 },
+    "reply": { "type": "string" },
+    "proposal": {
+      "anyOf": [
+        { "type": "null" },
+        { "$ref": "action_proposal.schema.json" }
+      ]
+    },
+    "provider": { "type": "string" },
+    "model": { "type": "string" },
+    "status": { "const": "ok" }
+  }
+}

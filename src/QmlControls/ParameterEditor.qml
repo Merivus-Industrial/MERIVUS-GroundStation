@@ -33,6 +33,55 @@ Item {
     property var    _appSettings:       QGroundControl.settingsManager.appSettings
     property var    _controller:        controller
 
+    property var    _parameterHelpFact: null
+    property real   _parameterHelpX: 0
+    property real   _parameterHelpY: 0
+
+    function _appendParameterHelpLine(lines, label, value) {
+        if (value !== undefined && value !== null && String(value).length > 0) {
+            lines.push(label + value)
+        }
+    }
+
+    function parameterHelpText(fact) {
+        if (!fact) return ""
+
+        var lines = [ fact.name ]
+        _appendParameterHelpLine(lines, qsTr("\u8bf4\u660e\uff1a"), fact.shortDescription)
+        if (fact.longDescription && fact.longDescription !== fact.shortDescription) {
+            _appendParameterHelpLine(lines, qsTr("\u8be6\u60c5\uff1a"), fact.longDescription)
+        }
+        _appendParameterHelpLine(lines, qsTr("\u5f53\u524d\u503c\uff1a"), fact.enumOrValueString + (fact.units ? " " + fact.units : ""))
+        if (fact.defaultValueAvailable) {
+            _appendParameterHelpLine(lines, qsTr("\u9ed8\u8ba4\u503c\uff1a"), fact.defaultValueString + (fact.units ? " " + fact.units : ""))
+        }
+        if (!fact.minIsDefaultForType || !fact.maxIsDefaultForType) {
+            _appendParameterHelpLine(lines, qsTr("\u8303\u56f4\uff1a"), fact.minString + " - " + fact.maxString + (fact.units ? " " + fact.units : ""))
+        }
+        if (fact.enumStrings && fact.enumStrings.length > 0) {
+            _appendParameterHelpLine(lines, qsTr("\u53ef\u9009\u9879\uff1a"), fact.enumStrings.join(", "))
+        }
+        if (fact.vehicleRebootRequired || fact.qgcRebootRequired) {
+            lines.push(qsTr("\u6ce8\u610f\uff1a\u4fee\u6539\u540e\u9700\u8981\u91cd\u542f %1\u3002").arg(fact.vehicleRebootRequired ? qsTr("\u98de\u63a7") : qsTr("\u5730\u9762\u7ad9")))
+        }
+        return lines.join("\n")
+    }
+
+    function showParameterHelp(sourceItem, fact) {
+        if (!sourceItem || !fact) return
+        var pos = sourceItem.mapToItem(_root, sourceItem.width + ScreenTools.defaultFontPixelWidth, 0)
+        _parameterHelpFact = fact
+        _parameterHelpX = Math.min(pos.x, _root.width - parameterHelpCard.width - ScreenTools.defaultFontPixelWidth)
+        _parameterHelpY = Math.max(header.height + ScreenTools.defaultFontPixelHeight * 0.5,
+                                   Math.min(pos.y, _root.height - parameterHelpCard.height - ScreenTools.defaultFontPixelHeight))
+    }
+
+    function hideParameterHelp(fact) {
+        if (!fact || _parameterHelpFact === fact) {
+            _parameterHelpFact = null
+        }
+    }
+
     ParameterEditorController {
         id: controller
     }
@@ -232,7 +281,7 @@ Item {
         delegate: Rectangle {
             height: _rowHeight
             width:  _rowWidth
-            color:  Qt.rgba(0,0,0,0)
+            color:  parameterMouse.containsMouse ? Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.08) : Qt.rgba(0,0,0,0)
 
             Row {
                 id:     factRow
@@ -287,8 +336,13 @@ Item {
             }
 
             MouseArea {
+                id:                 parameterMouse
                 anchors.fill:       parent
                 acceptedButtons:    Qt.LeftButton
+                hoverEnabled:       true
+                onEntered:          _root.showParameterHelp(parent, factRow.modelFact)
+                onPositionChanged:  _root.showParameterHelp(parent, factRow.modelFact)
+                onExited:           _root.hideParameterHelp(factRow.modelFact)
                 onClicked: {
                     _editorDialogFact = factRow.modelFact
                     editorDialogComponent.createObject(mainWindow).open()
@@ -297,6 +351,36 @@ Item {
         }
     }
 
+    Rectangle {
+        id: parameterHelpCard
+        z: 100000
+        x: _parameterHelpX
+        y: _parameterHelpY
+        width: Math.min(ScreenTools.defaultFontPixelWidth * 52, _root.width * 0.42)
+        height: Math.min(helpText.implicitHeight + ScreenTools.defaultFontPixelHeight * 1.4, _root.height * 0.45)
+        radius: 7
+        visible: _parameterHelpFact !== null
+        color: Qt.rgba(qgcPal.windowShade.r, qgcPal.windowShade.g, qgcPal.windowShade.b, 0.98)
+        border.color: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.22)
+        border.width: 1
+
+        QGCFlickable {
+            anchors.fill: parent
+            anchors.margins: ScreenTools.defaultFontPixelWidth
+            contentWidth: width
+            contentHeight: helpText.implicitHeight
+            clip: true
+
+            QGCLabel {
+                id: helpText
+                width: parent.width
+                text: _root.parameterHelpText(_parameterHelpFact)
+                color: qgcPal.text
+                font.pixelSize: 12
+                wrapMode: Text.WordWrap
+            }
+        }
+    }
     QGCFileDialog {
         id:             fileDialog
         folder:         _appSettings.parameterSavePath
