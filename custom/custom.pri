@@ -1,6 +1,6 @@
 message("Adding MERIVUS Custom Plugin")
 
-CUSTOM_QGC_VERSION = 0.1.0
+CUSTOM_QGC_VERSION = 0.1.0-dev.1
 
 DEFINES -= DAILY_BUILD
 

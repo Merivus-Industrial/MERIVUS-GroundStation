@@ -2,6 +2,10 @@
 
 MERIVUS 是基于 QGroundControl / PX4 / 4G / RTK / 本机 AI Agent 的无人机多机调度地面站平台。本仓库保留 QGroundControl 上游工程结构，并在 `custom/`、`agent/`、`docs/`、`schemas/` 和 `configs/` 中沉淀 MERIVUS 的定制能力。
 
+> 当前版本：`0.1.0-dev.1`（阶段性初版 / 开发测试版，2026-07-17）。该版本用于本地开发、SITL 与界面验证，不是生产发布版，不应用于无人值守或未经安全评审的真实飞行。
+
+版本变更见 [MERIVUS 版本变更记录](docs/releases/CHANGELOG.md)，本阶段完整说明见 [`0.1.0-dev.1` 阶段说明](docs/releases/0.1.0-dev.1.md)。
+
 ## 项目定位
 
 MERIVUS 面向多无人机协同作业场景，负责地面站 UI、链路状态展示、调度交互、任务预览、AI 辅助解释和本地安全建议。它不替代飞控，不绕过 PX4 / QGC 原生安全流程，也不让 LLM 直接控制无人机。

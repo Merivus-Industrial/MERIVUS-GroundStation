@@ -9,12 +9,87 @@
 #include <QJsonParseError>
 #include <QNetworkRequest>
 #include <QProcessEnvironment>
+#include <QStandardPaths>
 #include <QtGlobal>
 #include <QUuid>
 
 namespace {
 const char* kTimedOutProperty = "merivusSupervisorTimedOut";
 const char* kServiceName = "merivus-agent";
+
+QString findAncestorPathContaining(const QString& startPath, const QString& relativePath)
+{
+    QDir dir(startPath);
+    if (QFileInfo(startPath).isFile()) {
+        dir = QFileInfo(startPath).absoluteDir();
+    }
+
+    while (dir.exists()) {
+        const QString candidate = dir.filePath(relativePath);
+        if (QFileInfo(candidate).exists()) {
+            return dir.absolutePath();
+        }
+
+        if (!dir.cdUp()) {
+            break;
+        }
+    }
+
+    return QString();
+}
+
+QString findAgentRepoRoot()
+{
+    const QString marker = QStringLiteral("agent/app/__main__.py");
+    const QStringList roots = QStringList()
+        << QCoreApplication::applicationDirPath()
+        << QDir::currentPath();
+
+    for (const QString& root : roots) {
+        const QString repoRoot = findAncestorPathContaining(root, marker);
+        if (!repoRoot.isEmpty()) {
+            return repoRoot;
+        }
+    }
+
+    return QString();
+}
+
+QString findPythonExecutable()
+{
+    const QString envPython = qEnvironmentVariable("MERIVUS_AGENT_DEV_PYTHON").trimmed();
+    if (!envPython.isEmpty()) {
+        const QFileInfo pythonInfo(envPython);
+        if (pythonInfo.exists() && pythonInfo.isFile()) {
+            return pythonInfo.absoluteFilePath();
+        }
+    }
+
+    const QStringList candidates = QStringList()
+        << QStringLiteral("python.exe")
+        << QStringLiteral("python")
+        << QStringLiteral("py.exe")
+        << QStringLiteral("py");
+
+    for (const QString& candidate : candidates) {
+        const QString executable = QStandardPaths::findExecutable(candidate);
+        if (!executable.isEmpty()) {
+            return executable;
+        }
+    }
+
+    return QString();
+}
+
+QStringList pythonModuleArguments(const QString& pythonExecutable)
+{
+    const QString executableName = QFileInfo(pythonExecutable).fileName().toLower();
+    if (executableName == QStringLiteral("py.exe") || executableName == QStringLiteral("py")) {
+        return QStringList() << QStringLiteral("-3") << QStringLiteral("-m") << QStringLiteral("app");
+    }
+
+    return QStringList() << QStringLiteral("-m") << QStringLiteral("app");
+}
 }
 
 AiServiceSupervisor::AiServiceSupervisor(QObject* parent)
@@ -514,18 +589,45 @@ AiServiceSupervisor::LaunchSpec AiServiceSupervisor::_resolveLaunchSpec()
         return spec;
     }
 
+    const QString repoRoot = findAgentRepoRoot();
+    if (!repoRoot.isEmpty()) {
+        const QString packagedProgram = QDir(repoRoot).filePath(QStringLiteral("agent/dist/merivus-agent/merivus-agent.exe"));
+        QFileInfo packagedInfo(packagedProgram);
+        if (packagedInfo.exists() && packagedInfo.isFile()) {
+            spec.program = packagedInfo.absoluteFilePath();
+            spec.workingDirectory = packagedInfo.absolutePath();
+            spec.valid = true;
+            _setProgramPath(spec.program);
+            _setWorkingDirectory(spec.workingDirectory);
+            return spec;
+        }
+    }
+
     const QString devPython = qEnvironmentVariable("MERIVUS_AGENT_DEV_PYTHON");
     const QString devRoot = qEnvironmentVariable("MERIVUS_AGENT_DEV_ROOT");
     QFileInfo pythonInfo(devPython);
     QDir rootDir(devRoot);
     if (!devPython.trimmed().isEmpty() && !devRoot.trimmed().isEmpty() && pythonInfo.exists() && pythonInfo.isFile() && rootDir.exists()) {
         spec.program = pythonInfo.absoluteFilePath();
-        spec.arguments = QStringList() << QStringLiteral("-m") << QStringLiteral("app");
+        spec.arguments = pythonModuleArguments(spec.program);
         spec.workingDirectory = rootDir.absolutePath();
         spec.valid = true;
         _setProgramPath(spec.program);
         _setWorkingDirectory(spec.workingDirectory);
         return spec;
+    }
+
+    if (!repoRoot.isEmpty()) {
+        const QString python = findPythonExecutable();
+        if (!python.isEmpty()) {
+            spec.program = python;
+            spec.arguments = pythonModuleArguments(spec.program);
+            spec.workingDirectory = QDir(repoRoot).filePath(QStringLiteral("agent"));
+            spec.valid = true;
+            _setProgramPath(spec.program);
+            _setWorkingDirectory(spec.workingDirectory);
+            return spec;
+        }
     }
 
     _setProgramPath(QString());

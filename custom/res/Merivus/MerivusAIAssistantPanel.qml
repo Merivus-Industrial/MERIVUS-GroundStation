@@ -23,9 +23,9 @@ Item {
     property var pendingIntent: null
     property string pendingSummary: ""
     property real headerOffset: mainWindow.header && mainWindow.header.visible ? mainWindow.header.height + 6 : 8
-    property real availablePanelHeight: parent ? Math.max(320, parent.height - headerOffset - 18) : 760
+    property real availablePanelHeight: parent ? Math.max(320, parent.height - headerOffset - 18) : 820
     property real defaultPanelWidth: parent ? clamp(parent.width * 0.21, 340, 380) : 346
-    property real defaultPanelHeight: parent ? clamp(parent.height * 0.82, Math.min(620, availablePanelHeight), availablePanelHeight) : 760
+    property real defaultPanelHeight: parent ? clamp(parent.height * 0.90, Math.min(780, availablePanelHeight), availablePanelHeight) : 820
     property real defaultPanelTopMargin: parent ? clamp(headerOffset + 10, headerOffset, Math.max(headerOffset, parent.height - defaultPanelHeight - 8)) : headerOffset + 10
     property real maxPanelWidth: parent ? Math.max(320, Math.min(parent.width * 0.40, 640)) : 640
     property real minPanelWidth: Math.min(320, maxPanelWidth)
@@ -36,9 +36,11 @@ Item {
     property real panelTopMargin: clamp(assistantSettings.panelTopMargin, headerOffset,
                                         parent ? Math.max(headerOffset, parent.height - panelHeight - 8) : headerOffset)
     readonly property bool agentCanSend: assistantSettings.agentEnabled && aiSupervisor.healthReady && !agentRequestRunning
+    readonly property int _settingsLabelWidth: 68
+    readonly property real _settingsFieldHeight: 30
     readonly property string _agentGuide:
         "当前阶段使用本机 Mock Agent HTTP 服务，QML 只负责界面，C++ AiServiceSupervisor 负责本机Agent生命周期，AiAgentClient 负责HTTP请求。不接真实模型，不执行飞行动作。\n\n" +
-        "启动方式：发布包使用 applicationDirPath/agent/merivus-agent.exe；开发环境需显式配置 MERIVUS_AGENT_DEV_PYTHON 和 MERIVUS_AGENT_DEV_ROOT。\n" +
+        "启动方式：发布包使用 applicationDirPath/agent/merivus-agent.exe；开发环境会自动从仓库 agent 目录回退启动，也可显式配置 MERIVUS_AGENT_DEV_PYTHON 和 MERIVUS_AGENT_DEV_ROOT。\n" +
         "默认接口：GET /health、GET /merivus/info、POST /merivus/agent\n" +
         "请求字段：request_id、session_id、message、context、allowed_capabilities\n" +
         "响应字段：request_id、reply、proposal、provider、model、status。proposal 只显示为未执行建议。"
@@ -174,11 +176,11 @@ Item {
 
     function resetPanelLayoutIfNeeded() {
         if (!parent || parent.height <= 0) return
-        if (assistantSettings.layoutVersion < 6) {
+        if (assistantSettings.layoutVersion < 7) {
             assistantSettings.panelWidth = defaultPanelWidth
             assistantSettings.panelHeight = defaultPanelHeight
             assistantSettings.panelTopMargin = defaultPanelTopMargin
-            assistantSettings.layoutVersion = 6
+            assistantSettings.layoutVersion = 7
         }
     }
 
@@ -591,9 +593,31 @@ Item {
         property bool resizeLeftActive: activeResizeEdge === "left" || (!resizePressed && resizeLeftHandle.containsMouse)
         property bool resizeTopActive: activeResizeEdge === "top" || (!resizePressed && resizeTopHandle.containsMouse)
         property bool resizeBottomActive: activeResizeEdge === "bottom" || (!resizePressed && resizeBottomHandle.containsMouse)
+        property bool inputHovered: false
 
         Behavior on width { NumberAnimation { duration: resizeLeftHandle.pressed ? 0 : 120 } }
         Behavior on height { NumberAnimation { duration: resizeTopHandle.pressed || resizeBottomHandle.pressed ? 0 : 120 } }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.10) }
+                GradientStop { position: 0.22; color: Qt.rgba(qgcPal.window.r, qgcPal.window.g, qgcPal.window.b, 0.96) }
+                GradientStop { position: 1.0; color: Qt.rgba(qgcPal.window.r, qgcPal.window.g, qgcPal.window.b, 0.92) }
+            }
+        }
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 2
+            color: qgcPal.buttonHighlight
+            opacity: root._panelHovered ? 0.95 : 0.55
+
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+        }
 
         MouseArea {
             anchors.fill: parent
@@ -820,16 +844,16 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root.settingsOpen ? Math.min(500, Math.max(360, root.panelHeight - 184)) : 0
+                Layout.preferredHeight: root.settingsOpen ? Math.min(540, Math.max(390, root.panelHeight - 174)) : 0
                 visible: root.settingsOpen
                 radius: 7
-                color: Qt.rgba(qgcPal.windowShade.r, qgcPal.windowShade.g, qgcPal.windowShade.b, 0.88)
+                color: Qt.rgba(qgcPal.windowShade.r, qgcPal.windowShade.g, qgcPal.windowShade.b, 0.92)
                 border.color: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.12)
                 clip: true
 
                 Flickable {
                     anchors.fill: parent
-                    anchors.margins: 10
+                    anchors.margins: 12
                     clip: true
                     contentWidth: width
                     contentHeight: settingsColumn.implicitHeight
@@ -840,12 +864,15 @@ Item {
                     ColumnLayout {
                         id: settingsColumn
                         width: parent.width
-                        spacing: 7
+                        spacing: 10
 
                         RowLayout {
                             Layout.fillWidth: true
+                            spacing: 8
+
                             QGCCheckBox {
                                 id: agentSwitch
+                                Layout.fillWidth: true
                                 text: tr("启用本机智能体")
                                 checked: assistantSettings.agentEnabled
                                 onClicked: {
@@ -858,14 +885,34 @@ Item {
                                     }
                                 }
                             }
-                            QGCLabel {
-                                Layout.fillWidth: true
-                                horizontalAlignment: Text.AlignRight
-                                text: agentRequestRunning ? tr("请求中") : aiSupervisor.stateText
-                                color: agentRequestRunning || aiSupervisor.state === AiServiceSupervisor.Checking || aiSupervisor.state === AiServiceSupervisor.Starting
-                                       ? qgcPal.colorOrange
-                                       : aiSupervisor.healthReady ? qgcPal.colorGreen : qgcPal.colorGrey
-                                font.pixelSize: 11
+
+                            Rectangle {
+                                Layout.preferredWidth: 96
+                                Layout.preferredHeight: 24
+                                radius: 4
+                                color: aiSupervisor.healthReady ? Qt.rgba(qgcPal.colorGreen.r, qgcPal.colorGreen.g, qgcPal.colorGreen.b, 0.18)
+                                      : agentRequestRunning || aiSupervisor.state === AiServiceSupervisor.Checking || aiSupervisor.state === AiServiceSupervisor.Starting
+                                        ? Qt.rgba(qgcPal.colorOrange.r, qgcPal.colorOrange.g, qgcPal.colorOrange.b, 0.18)
+                                        : Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.08)
+                                border.color: aiSupervisor.healthReady ? qgcPal.colorGreen
+                                             : agentRequestRunning || aiSupervisor.state === AiServiceSupervisor.Checking || aiSupervisor.state === AiServiceSupervisor.Starting
+                                               ? qgcPal.colorOrange
+                                               : Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.18)
+
+                                QGCLabel {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 8
+                                    anchors.rightMargin: 8
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: agentRequestRunning ? tr("请求中") : aiSupervisor.stateText
+                                    color: aiSupervisor.healthReady ? qgcPal.colorGreen
+                                         : agentRequestRunning || aiSupervisor.state === AiServiceSupervisor.Checking || aiSupervisor.state === AiServiceSupervisor.Starting
+                                           ? qgcPal.colorOrange
+                                           : qgcPal.colorGrey
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
                             }
                         }
 
@@ -888,185 +935,229 @@ Item {
                             wrapMode: Text.WordWrap
                         }
 
-                    RowLayout {
-                        Layout.fillWidth: true
                         QGCLabel {
-                            Layout.preferredWidth: 72
-                            text: tr("Provider")
-                            color: qgcPal.text
-                            font.pixelSize: 12
+                            Layout.fillWidth: true
+                            text: aiSupervisor.workingDirectory.length > 0 ? tr("运行目录：%1").arg(aiSupervisor.workingDirectory) : tr("运行目录：待解析")
+                            color: qgcPal.colorGrey
+                            font.pixelSize: 11
+                            elide: Text.ElideMiddle
                         }
-                        QGCComboBox {
-                            Layout.preferredWidth: 118
-                            model: [ tr("Mock"), tr("Ollama") ]
-                            currentIndex: root.currentProviderIndex()
-                            onActivated: {
-                                var nextProvider = currentIndex === 1 ? "ollama" : "mock"
-                                if (assistantSettings.agentProvider !== nextProvider) {
-                                    assistantSettings.agentProvider = nextProvider
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 1
+                            color: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.10)
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            QGCLabel {
+                                Layout.preferredWidth: root._settingsLabelWidth
+                                text: tr("Provider")
+                                color: qgcPal.text
+                                font.pixelSize: 12
+                            }
+
+                            QGCComboBox {
+                                Layout.preferredWidth: 126
+                                Layout.preferredHeight: root._settingsFieldHeight
+                                model: [ tr("Mock"), tr("Ollama") ]
+                                currentIndex: root.currentProviderIndex()
+                                onActivated: {
+                                    var nextProvider = currentIndex === 1 ? "ollama" : "mock"
+                                    if (assistantSettings.agentProvider !== nextProvider) {
+                                        assistantSettings.agentProvider = nextProvider
+                                        root.applyAgentProviderSettings()
+                                    }
+                                }
+                            }
+
+                            QGCLabel {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignRight
+                                text: aiSupervisor.ownsProcess ? tr("MERIVUS托管") : tr("外部Agent")
+                                color: aiSupervisor.ownsProcess ? qgcPal.colorGreen : qgcPal.colorOrange
+                                font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 2
+                            columnSpacing: 8
+                            rowSpacing: 7
+
+                            QGCLabel {
+                                Layout.preferredWidth: root._settingsLabelWidth
+                                text: tr("模型")
+                                color: qgcPal.text
+                                font.pixelSize: 12
+                            }
+                            QGCTextField {
+                                id: ollamaModelField
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: root._settingsFieldHeight
+                                text: assistantSettings.ollamaModel
+                                enabled: assistantSettings.agentProvider === "ollama"
+                                font.pixelSize: 12
+                                onEditingFinished: {
+                                    var value = text.trim()
+                                    assistantSettings.ollamaModel = value.length > 0 ? value : "qwen3:8b"
+                                    text = assistantSettings.ollamaModel
                                     root.applyAgentProviderSettings()
                                 }
                             }
-                        }
-                        QGCLabel {
-                            Layout.fillWidth: true
-                            horizontalAlignment: Text.AlignRight
-                            text: aiSupervisor.ownsProcess ? tr("MERIVUS托管") : tr("外部Agent")
-                            color: aiSupervisor.ownsProcess ? qgcPal.colorGreen : qgcPal.colorOrange
-                            font.pixelSize: 11
-                        }
-                    }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        QGCLabel {
-                            Layout.preferredWidth: 72
-                            text: tr("模型")
-                            color: qgcPal.text
-                            font.pixelSize: 12
-                        }
-                        QGCTextField {
-                            id: ollamaModelField
-                            Layout.fillWidth: true
-                            text: assistantSettings.ollamaModel
-                            enabled: assistantSettings.agentProvider === "ollama"
-                            font.pixelSize: 12
-                            onEditingFinished: {
-                                var value = text.trim()
-                                assistantSettings.ollamaModel = value.length > 0 ? value : "qwen3:8b"
-                                text = assistantSettings.ollamaModel
-                                root.applyAgentProviderSettings()
+                            QGCLabel {
+                                Layout.preferredWidth: root._settingsLabelWidth
+                                text: tr("Ollama")
+                                color: qgcPal.text
+                                font.pixelSize: 12
+                            }
+                            QGCTextField {
+                                id: ollamaBaseUrlField
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: root._settingsFieldHeight
+                                text: assistantSettings.ollamaBaseUrl
+                                enabled: assistantSettings.agentProvider === "ollama"
+                                font.pixelSize: 12
+                                onEditingFinished: {
+                                    assistantSettings.ollamaBaseUrl = text.trim().length > 0 ? text.trim() : "http://127.0.0.1:11434"
+                                    text = assistantSettings.ollamaBaseUrl
+                                    root.applyAgentProviderSettings()
+                                }
+                            }
+
+                            QGCLabel {
+                                Layout.preferredWidth: root._settingsLabelWidth
+                                text: tr("超时")
+                                color: qgcPal.text
+                                font.pixelSize: 12
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                QGCTextField {
+                                    Layout.preferredWidth: 66
+                                    Layout.preferredHeight: root._settingsFieldHeight
+                                    text: String(assistantSettings.ollamaTimeoutSeconds)
+                                    enabled: assistantSettings.agentProvider === "ollama"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.pixelSize: 12
+                                    validator: IntValidator { bottom: 1; top: 300 }
+                                    onEditingFinished: {
+                                        var seconds = parseInt(text)
+                                        if (isNaN(seconds)) seconds = 60
+                                        assistantSettings.ollamaTimeoutSeconds = root.clamp(seconds, 1, 300)
+                                        text = String(assistantSettings.ollamaTimeoutSeconds)
+                                        root.applyAgentProviderSettings()
+                                    }
+                                }
+
+                                QGCCheckBox {
+                                    Layout.fillWidth: true
+                                    text: tr("允许Mock回退")
+                                    checked: assistantSettings.allowMockFallback
+                                    onClicked: {
+                                        assistantSettings.allowMockFallback = checked
+                                        root.applyAgentProviderSettings()
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        QGCLabel {
-                            Layout.preferredWidth: 72
-                            text: tr("Ollama")
-                            color: qgcPal.text
-                            font.pixelSize: 12
-                        }
-                        QGCTextField {
-                            id: ollamaBaseUrlField
-                            Layout.fillWidth: true
-                            text: assistantSettings.ollamaBaseUrl
-                            enabled: assistantSettings.agentProvider === "ollama"
-                            font.pixelSize: 12
-                            onEditingFinished: {
-                                assistantSettings.ollamaBaseUrl = text.trim().length > 0 ? text.trim() : "http://127.0.0.1:11434"
-                                text = assistantSettings.ollamaBaseUrl
-                                root.applyAgentProviderSettings()
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        QGCLabel {
-                            Layout.preferredWidth: 72
-                            text: tr("超时")
-                            color: qgcPal.text
-                            font.pixelSize: 12
-                        }
-                        QGCTextField {
-                            Layout.preferredWidth: 58
-                            text: String(assistantSettings.ollamaTimeoutSeconds)
-                            enabled: assistantSettings.agentProvider === "ollama"
-                            horizontalAlignment: Text.AlignHCenter
-                            font.pixelSize: 12
-                            validator: IntValidator { bottom: 1; top: 300 }
-                            onEditingFinished: {
-                                var seconds = parseInt(text)
-                                if (isNaN(seconds)) seconds = 60
-                                assistantSettings.ollamaTimeoutSeconds = root.clamp(seconds, 1, 300)
-                                text = String(assistantSettings.ollamaTimeoutSeconds)
-                                root.applyAgentProviderSettings()
-                            }
-                        }
-                        QGCCheckBox {
-                            Layout.fillWidth: true
-                            text: tr("允许Mock回退")
-                            checked: assistantSettings.allowMockFallback
-                            onClicked: {
-                                assistantSettings.allowMockFallback = checked
-                                root.applyAgentProviderSettings()
-                            }
-                        }
-                    }
-
-                    QGCLabel {
-                        Layout.fillWidth: true
-                        text: tr("当前Provider/Model：%1 / %2").arg(aiAgentClient.provider).arg(aiAgentClient.model)
-                        color: qgcPal.text
-                        font.pixelSize: 12
-                    }
-
-                    QGCLabel {
-                        Layout.fillWidth: true
-                        text: tr("Provider Ready：%1").arg(aiAgentClient.providerReady ? tr("是") : tr("否"))
-                        color: aiAgentClient.providerReady ? qgcPal.colorGreen : qgcPal.colorOrange
-                        font.pixelSize: 12
-                    }
-
-                    QGCLabel {
-                        Layout.fillWidth: true
-                        visible: aiAgentClient.providerError.length > 0
-                        text: tr("Provider Error：%1").arg(aiAgentClient.providerError)
-                        color: qgcPal.warningText
-                        font.pixelSize: 12
-                        wrapMode: Text.WordWrap
-                    }
-
-                    QGCLabel {
-                        Layout.fillWidth: true
-                        visible: aiAgentClient.availableModelsText.length > 0
-                        text: tr("Models：%1").arg(aiAgentClient.availableModelsText)
-                        color: qgcPal.text
-                        font.pixelSize: 12
-                        elide: Text.ElideRight
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
                         QGCLabel {
                             Layout.fillWidth: true
-                            text: tr("消息保留：%1 条").arg(assistantSettings.maxMessages)
+                            text: tr("当前：%1 / %2").arg(aiAgentClient.provider).arg(aiAgentClient.model)
                             color: qgcPal.text
+                            font.pixelSize: 12
+                            elide: Text.ElideRight
                         }
-                        QGCButton {
-                            Layout.preferredWidth: 32
-                            text: "-"
-                            onClicked: assistantSettings.maxMessages = Math.max(20, assistantSettings.maxMessages - 20)
-                        }
-                        QGCButton {
-                            Layout.preferredWidth: 32
-                            text: "+"
-                            onClicked: assistantSettings.maxMessages = Math.min(200, assistantSettings.maxMessages + 20)
-                        }
-                    }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        QGCButton {
+                        QGCLabel {
                             Layout.fillWidth: true
-                            text: tr("清空历史")
-                            onClicked: root.clearChatHistory()
+                            text: tr("Provider Ready：%1").arg(aiAgentClient.providerReady ? tr("是") : tr("否"))
+                            color: aiAgentClient.providerReady ? qgcPal.colorGreen : qgcPal.colorOrange
+                            font.pixelSize: 12
                         }
-                        QGCButton {
+
+                        QGCLabel {
                             Layout.fillWidth: true
-                            text: tr("重启Agent")
-                            enabled: assistantSettings.agentEnabled
-                            onClicked: root.applyAgentProviderSettings()
+                            visible: aiAgentClient.providerError.length > 0
+                            text: tr("Provider Error：%1").arg(aiAgentClient.providerError)
+                            color: qgcPal.warningText
+                            font.pixelSize: 12
+                            wrapMode: Text.WordWrap
                         }
+
+                        QGCLabel {
+                            Layout.fillWidth: true
+                            visible: aiAgentClient.availableModelsText.length > 0
+                            text: tr("Models：%1").arg(aiAgentClient.availableModelsText)
+                            color: qgcPal.text
+                            font.pixelSize: 12
+                            elide: Text.ElideRight
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 1
+                            color: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.10)
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            QGCLabel {
+                                Layout.fillWidth: true
+                                text: tr("消息保留：%1 条").arg(assistantSettings.maxMessages)
+                                color: qgcPal.text
+                                font.pixelSize: 12
+                            }
+                            QGCButton {
+                                Layout.preferredWidth: 36
+                                Layout.preferredHeight: 30
+                                text: "-"
+                                onClicked: assistantSettings.maxMessages = Math.max(20, assistantSettings.maxMessages - 20)
+                            }
+                            QGCButton {
+                                Layout.preferredWidth: 36
+                                Layout.preferredHeight: 30
+                                text: "+"
+                                onClicked: assistantSettings.maxMessages = Math.min(200, assistantSettings.maxMessages + 20)
+                            }
+                        }
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            QGCButton {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 32
+                                text: tr("清空历史")
+                                onClicked: root.clearChatHistory()
+                            }
+                            QGCButton {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 32
+                                text: tr("重启Agent")
+                                enabled: assistantSettings.agentEnabled
+                                onClicked: root.applyAgentProviderSettings()
+                            }
+                        }
+
                         QGCButton {
                             Layout.fillWidth: true
+                            Layout.preferredHeight: 32
                             text: tr("生成接入说明")
                             onClicked: root.appendMessage("assistant", root._agentGuide)
                         }
                     }
-                }
                 }
             }
 
@@ -1086,31 +1177,98 @@ Item {
 
                 delegate: Item {
                     width: chatList.width
-                    height: bubble.implicitHeight
+                    height: bubble.implicitHeight + 10
+
+                    property bool isUserMessage: model.role === "user"
+                    property bool hovered: false
 
                     Rectangle {
                         id: bubble
-                        width: Math.min(parent.width * 0.88, Math.max(92, messageText.implicitWidth + 22))
-                        implicitHeight: messageText.implicitHeight + 16
-                        x: model.role === "user" ? parent.width - width : 0
-                        radius: 8
-                        color: model.role === "user" ? Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.95)
-                                                     : qgcPal.windowShade
-                        border.color: Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.10)
+                        readonly property real horizontalPadding: 13
+                        readonly property real verticalPadding: 10
 
-                        QGCLabel {
-                            id: messageText
+                        width: Math.min(parent.width * (isUserMessage ? 0.74 : 0.88),
+                                        Math.max(126, messageText.implicitWidth + horizontalPadding * 2 + 10))
+                        implicitHeight: messageText.implicitHeight + verticalPadding * 2
+                        x: isUserMessage ? parent.width - width - 2 : 2
+                        y: 3
+                        radius: 8
+                        color: isUserMessage
+                               ? Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, hovered ? 0.98 : 0.88)
+                               : Qt.rgba(qgcPal.windowShade.r, qgcPal.windowShade.g, qgcPal.windowShade.b, hovered ? 0.98 : 0.90)
+                        border.color: isUserMessage
+                                      ? Qt.rgba(qgcPal.buttonHighlightText.r, qgcPal.buttonHighlightText.g, qgcPal.buttonHighlightText.b, hovered ? 0.35 : 0.18)
+                                      : Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, hovered ? 0.34 : 0.16)
+                        border.width: 1
+
+                        Behavior on color { ColorAnimation { duration: 110 } }
+                        Behavior on border.color { ColorAnimation { duration: 110 } }
+
+                        Rectangle {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.top: parent.top
-                            anchors.margins: 8
+                            anchors.leftMargin: 9
+                            anchors.rightMargin: 9
+                            height: 1
+                            color: isUserMessage ? qgcPal.buttonHighlightText : qgcPal.buttonHighlight
+                            opacity: hovered ? 0.34 : 0.16
+
+                            Behavior on opacity { NumberAnimation { duration: 110 } }
+                        }
+
+                        Rectangle {
+                            visible: !isUserMessage
+                            width: 3
+                            radius: 2
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.margins: 6
+                            color: qgcPal.buttonHighlight
+                            opacity: hovered ? 0.78 : 0.58
+
+                            Behavior on opacity { NumberAnimation { duration: 110 } }
+                        }
+
+                        Rectangle {
+                            visible: isUserMessage
+                            width: 3
+                            radius: 2
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            anchors.margins: 6
+                            color: qgcPal.buttonHighlightText
+                            opacity: hovered ? 0.58 : 0.38
+
+                            Behavior on opacity { NumberAnimation { duration: 110 } }
+                        }
+
+                        QGCLabel {
+                            id: messageText
+                            anchors.fill: parent
+                            anchors.leftMargin: bubble.horizontalPadding + (isUserMessage ? 0 : 6)
+                            anchors.rightMargin: bubble.horizontalPadding + (isUserMessage ? 6 : 0)
+                            anchors.topMargin: bubble.verticalPadding
+                            anchors.bottomMargin: bubble.verticalPadding
                             text: model.text
                             wrapMode: Text.WordWrap
-                            color: model.role === "user" ? qgcPal.buttonHighlightText : qgcPal.text
+                            lineHeight: 1.18
+                            color: isUserMessage ? qgcPal.buttonHighlightText : qgcPal.text
                             font.pixelSize: 12
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            acceptedButtons: Qt.NoButton
+                            onEntered: hovered = true
+                            onExited: hovered = false
                         }
                     }
                 }
+
             }
 
             Rectangle {
@@ -1150,26 +1308,58 @@ Item {
                 }
             }
 
-            RowLayout {
+            Rectangle {
                 Layout.fillWidth: true
-                QGCTextField {
-                    id: inputField
-                    Layout.fillWidth: true
-                    placeholderText: agentRequestRunning ? tr("等待 Agent 响应...")
-                                     : assistantSettings.agentEnabled && !aiSupervisor.healthReady ? tr("等待本机智能体就绪...")
-                                     : tr("输入指令或问题")
-                    enabled: !agentRequestRunning && (!assistantSettings.agentEnabled || aiSupervisor.healthReady)
-                    onAccepted: {
-                        root.handleUserText(text)
-                        text = ""
-                    }
+                Layout.preferredHeight: 42
+                radius: 7
+                color: Qt.rgba(qgcPal.windowShade.r, qgcPal.windowShade.g, qgcPal.windowShade.b, assistantPanel.inputHovered || inputField.activeFocus ? 0.98 : 0.88)
+                border.color: assistantPanel.inputHovered || inputField.activeFocus
+                              ? Qt.rgba(qgcPal.buttonHighlight.r, qgcPal.buttonHighlight.g, qgcPal.buttonHighlight.b, 0.72)
+                              : Qt.rgba(qgcPal.text.r, qgcPal.text.g, qgcPal.text.b, 0.20)
+                border.width: assistantPanel.inputHovered || inputField.activeFocus ? 2 : 1
+
+                Behavior on color { ColorAnimation { duration: 110 } }
+                Behavior on border.color { ColorAnimation { duration: 110 } }
+                Behavior on border.width { NumberAnimation { duration: 110 } }
+
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    acceptedButtons: Qt.NoButton
+                    onEntered: assistantPanel.inputHovered = true
+                    onExited: assistantPanel.inputHovered = false
                 }
-                QGCButton {
-                    text: tr("发送")
-                    enabled: !agentRequestRunning && (!assistantSettings.agentEnabled || aiSupervisor.healthReady)
-                    onClicked: {
-                        root.handleUserText(inputField.text)
-                        inputField.text = ""
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 6
+                    anchors.topMargin: 5
+                    anchors.bottomMargin: 5
+                    spacing: 8
+
+                    QGCTextField {
+                        id: inputField
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        placeholderText: agentRequestRunning ? tr("等待 Agent 响应...")
+                                         : assistantSettings.agentEnabled && !aiSupervisor.healthReady ? tr("等待本机智能体就绪...")
+                                         : tr("输入指令或问题")
+                        enabled: !agentRequestRunning && (!assistantSettings.agentEnabled || aiSupervisor.healthReady)
+                        onAccepted: {
+                            root.handleUserText(text)
+                            text = ""
+                        }
+                    }
+                    QGCButton {
+                        Layout.preferredWidth: 62
+                        Layout.fillHeight: true
+                        text: tr("发送")
+                        enabled: !agentRequestRunning && (!assistantSettings.agentEnabled || aiSupervisor.healthReady)
+                        onClicked: {
+                            root.handleUserText(inputField.text)
+                            inputField.text = ""
+                        }
                     }
                 }
             }

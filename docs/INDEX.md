@@ -1,5 +1,10 @@
 # MERIVUS 文档索引
 
+## 版本与发布
+
+- [版本变更记录](releases/CHANGELOG.md)
+- [`0.1.0-dev.1` 阶段性初版](releases/0.1.0-dev.1.md)
+
 ## 项目与架构
 
 - [项目总览](architecture/PROJECT_OVERVIEW.md)
