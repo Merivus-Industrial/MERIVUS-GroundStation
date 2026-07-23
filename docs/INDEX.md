@@ -1,5 +1,17 @@
 # MERIVUS 文档索引
 
+## 工程接手与项目状态
+
+新开发人员、新 GPT/Codex 账号或新 Agent 请从 [工程交接入口](handoff/README.md) 开始：
+
+- [当前真实状态](handoff/02_CURRENT_STATE.md)
+- [系统架构与安全链路](handoff/03_SYSTEM_ARCHITECTURE.md)
+- [工程决策与历史](handoff/05_DECISIONS_AND_HISTORY.md)
+- [测试与验证矩阵](handoff/07_TEST_AND_VERIFICATION_MATRIX.md)
+- [下一步路线](handoff/09_NEXT_STEPS.md)
+- [AI / Codex 接手说明](handoff/10_AI_CODEX_HANDOFF.md)
+- [账号与电脑迁移清单](handoff/11_ACCOUNT_AND_MACHINE_MIGRATION.md)
+
 ## 版本与发布
 
 - [版本变更记录](releases/CHANGELOG.md)
