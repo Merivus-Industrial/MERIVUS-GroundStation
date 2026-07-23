@@ -12,6 +12,15 @@
 - [AI / Codex 接手说明](handoff/10_AI_CODEX_HANDOFF.md)
 - [账号与电脑迁移清单](handoff/11_ACCOUNT_AND_MACHINE_MIGRATION.md)
 
+## 当前版本说明书
+
+- [用户手册](manuals/MERIVUS_用户手册_0.1.0-dev.1.docx)
+- [软件设计说明书](manuals/MERIVUS_软件设计说明书_0.1.0-dev.1.docx)
+- [功能说明书（含创新点与阶段边界）](manuals/MERIVUS_功能说明书_0.1.0-dev.1.docx)
+- [源程序代码存档（前后各 1500 行）](manuals/MERIVUS_源程序代码存档_0.1.0-dev.1.docx)
+
+三份说明书与源码存档面向 `0.1.0-dev.1` 开发测试版；打开 Word 后请允许更新目录域。
+
 ## 版本与发布
 
 - [版本变更记录](releases/CHANGELOG.md)
