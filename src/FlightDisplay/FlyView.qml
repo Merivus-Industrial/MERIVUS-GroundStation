@@ -114,6 +114,7 @@ Item {
         missionController:  _missionController
         actionList:         _guidedActionList
         guidedValueSlider:     _guidedValueSlider
+        selectedVehicleIds: mapControl.selectedSwarmIds
     }
 
     /*GuidedActionConfirm {

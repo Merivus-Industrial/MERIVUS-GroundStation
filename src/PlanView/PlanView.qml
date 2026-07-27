@@ -116,6 +116,16 @@ Item {
                                                 qsTr("The plan being worked on in the Plan View is not from the current vehicle. What would you like to do with that plan?")
                 }
 
+                QGCLabel {
+                    Layout.maximumWidth:    parent.width
+                    wrapMode:               QGCLabel.WordWrap
+                    visible:                !_planMasterController.managerVehicle.isOfflineEditingVehicle
+                    text:                   qsTr("当前目标为 UAV-%1。每架无人机已上传到飞控的任务彼此独立；若要查看或编辑该机自己的任务，请从车辆加载。保留当前方案会把上一份编辑草稿带到当前车辆上下文，之后上传可能覆盖该机任务。")
+                                                .arg(_planMasterController.managerVehicle.id)
+                    color:                  qgcPal.warningText
+                    font.pointSize:         ScreenTools.smallFontPointSize
+                }
+
                 QGCButton {
                     Layout.fillWidth:   true
                     text:               _planMasterController.dirty ?

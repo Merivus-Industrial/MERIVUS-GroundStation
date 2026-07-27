@@ -225,11 +225,13 @@ function escFact(vehicle, prefix, motorIndex) {
         return tr("\u5df2\u8fde\u63a5")
     }
 
-    function runGuidedAction(actionId) {
+    function runGuidedAction(actionId, actionData) {
         if (!guidedController || actionId < 0) return
         guidedController.closeAll()
-        guidedController.confirmAction(actionId)
+        guidedController.confirmAction(actionId, actionData)
     }
+
+    function selectedIdsSnapshot() { return selectedIds ? selectedIds.slice(0) : [] }
 
     function showFloatingToolTip(sourceItem, text, align) {
         if (!sourceItem || !text) return
@@ -269,6 +271,29 @@ function escFact(vehicle, prefix, motorIndex) {
 
     function canSendFocusCommand() {
         return focusVehicle && !(focusVehicle.vehicleLinkManager && focusVehicle.vehicleLinkManager.communicationLost)
+    }
+
+    function vehicleCanTakeoff(vehicle) {
+        if (!vehicle || !vehicle.initialConnectComplete || !vehicle.guidedModeSupported || !vehicle.takeoffVehicleSupported || vehicle.flying) return false
+        if (vehicle.vehicleLinkManager && vehicle.vehicleLinkManager.communicationLost) return false
+        var report = vehicle.healthAndArmingCheckReport
+        return !report || !report.supported || report.canTakeoff
+    }
+
+    function takeoffTargetsAvailable() {
+        if (!guidedController) return false
+        if (selectedCount() === 0) return guidedController.showTakeoff
+
+        for (var i = 0; i < selectedIds.length; i++) {
+            if (vehicleCanTakeoff(vehicleById(selectedIds[i]))) return true
+        }
+        return false
+    }
+
+    function guidedActionData(actionId) {
+        if (!guidedController) return undefined
+        return actionId === guidedController.actionTakeoff || actionId === guidedController.actionSwarm
+                ? selectedIdsSnapshot() : undefined
     }
 
     function applyControlCommand(kind) {
@@ -416,10 +441,10 @@ function escFact(vehicle, prefix, motorIndex) {
                 Repeater {
                     model: [
                         { title: tr("\u4efb\u52a1\u89c4\u5212"), icon: "/qmlimages/Plan.svg", enabled: true, type: "plan", action: -1 },
-                        { title: tr("\u8d77\u98de"), icon: "/res/takeoff.svg", enabled: root.guidedController && root.guidedController.showTakeoff, type: "guided", action: root.guidedController ? root.guidedController.actionTakeoff : -1 },
+                        { title: tr("\u8d77\u98de"), icon: "/res/takeoff.svg", enabled: root.takeoffTargetsAvailable(), type: "guided", action: root.guidedController ? root.guidedController.actionTakeoff : -1 },
                         { title: tr("\u964d\u843d"), icon: "/res/land.svg", enabled: root.guidedController && root.guidedController.showLand, type: "guided", action: root.guidedController ? root.guidedController.actionLand : -1 },
                         { title: tr("\u8fd4\u822a"), icon: "/res/rtl.svg", enabled: root.guidedController && root.guidedController.showRTL, type: "guided", action: root.guidedController ? root.guidedController.actionRTL : -1 },
-                        { title: tr("\u7f16\u961f"), icon: "/qmlimages/swarm.svg", enabled: root.guidedController && root.vehicleById(1), type: "guided", action: root.guidedController ? root.guidedController.actionSwarm : -1 }
+                        { title: tr("\u7f16\u961f"), icon: "/qmlimages/swarm.svg", enabled: root.guidedController && root.selectedCount() >= 2, type: "guided", action: root.guidedController ? root.guidedController.actionSwarm : -1 }
                     ]
                     Rectangle {
                         Layout.fillWidth: true
@@ -451,11 +476,12 @@ function escFact(vehicle, prefix, motorIndex) {
                             anchors.fill: parent
                             enabled: modelData.enabled
                             hoverEnabled: true
-                            onClicked: modelData.type === "plan" ? mainWindow.showPlanView() : root.runGuidedAction(modelData.action)
+                            onClicked: modelData.type === "plan" ? mainWindow.showPlanView()
+                                                                  : root.runGuidedAction(modelData.action, root.guidedActionData(modelData.action))
                         }
                         MerivusToolTip {
                             visible: commandMouse.containsMouse
-                            text: modelData.type === "plan" ? tr("\u6253\u5f00\u4efb\u52a1\u89c4\u5212") : tr("\u8fdb\u5165\u539f\u6709\u786e\u8ba4\u6d41\u7a0b")
+                            text: modelData.type === "plan" ? tr("\u6253\u5f00\u4efb\u52a1\u89c4\u5212") : tr("\u4f7f\u7528\u5f53\u524d\u6846\u9009\u76ee\u6807\u8fdb\u5165\u786e\u8ba4\u6d41\u7a0b")
                             anchors.left: parent.left
                             anchors.bottom: parent.top
                             anchors.bottomMargin: 6

@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "Fact.h"
+#include "HealthAndArmingCheckReport.h"
 #include "LinkInterface.h"
 #include "MissionItem.h"
 #include "MissionManager.h"
@@ -50,6 +51,112 @@ QVariantMap SwarmController::executeQueuedGoto(const QVariantList& selectedVehic
     }
 
     return _executeGotoInternal(selectedVehicleIds, coordinates, true);
+}
+
+QVariantMap SwarmController::executeTakeoff(const QVariantList& selectedVehicleIds, double altitudeMeters)
+{
+    if (selectedVehicleIds.isEmpty()) {
+        return _result(false, tr("Select at least one vehicle before batch takeoff."));
+    }
+
+    if (!std::isfinite(altitudeMeters) || altitudeMeters <= 0.0) {
+        return _result(false, tr("Takeoff altitude must be greater than zero."));
+    }
+
+    QSet<int> requestedIds;
+    for (const QVariant& value : selectedVehicleIds) {
+        const int id = value.toInt();
+        if (id <= 0 || requestedIds.contains(id)) {
+            return _result(false, tr("Vehicle selection contains an invalid or duplicate ID."));
+        }
+        requestedIds.insert(id);
+    }
+
+    const QList<Vehicle*> vehicles = _selectedVehicles(selectedVehicleIds);
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    QSet<int> matchedIds;
+    int delayMs = 0;
+
+    for (Vehicle* vehicle : vehicles) {
+        if (!vehicle) {
+            continue;
+        }
+
+        matchedIds.insert(vehicle->id());
+        if (!_vehicleTakeoffReady(vehicle, altitudeMeters)) {
+            skippedIds << vehicle->id();
+            continue;
+        }
+
+        _dispatchTakeoff(vehicle, altitudeMeters, delayMs);
+        dispatchedIds << vehicle->id();
+        delayMs += 200;
+    }
+
+    for (int id : requestedIds) {
+        if (!matchedIds.contains(id)) {
+            skippedIds << id;
+        }
+    }
+
+    const bool ok = !dispatchedIds.isEmpty();
+    return _result(ok,
+                   ok ? tr("Batch takeoff commands scheduled for the selected vehicles.")
+                      : tr("No selected vehicle met the takeoff requirements."),
+                   dispatchedIds,
+                   skippedIds);
+}
+
+QVariantMap SwarmController::executeStartMissions(const QVariantList& selectedVehicleIds)
+{
+    if (selectedVehicleIds.count() < 2) {
+        return _result(false, tr("Select at least two vehicles before starting formation missions."));
+    }
+
+    QSet<int> requestedIds;
+    for (const QVariant& value : selectedVehicleIds) {
+        const int id = value.toInt();
+        if (id <= 0 || requestedIds.contains(id)) {
+            return _result(false, tr("Vehicle selection contains an invalid or duplicate ID."));
+        }
+        requestedIds.insert(id);
+    }
+
+    const QList<Vehicle*> vehicles = _selectedVehicles(selectedVehicleIds);
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    QSet<int> matchedIds;
+    int delayMs = 0;
+
+    for (Vehicle* vehicle : vehicles) {
+        if (!vehicle) {
+            continue;
+        }
+
+        matchedIds.insert(vehicle->id());
+        if (!_vehicleMissionStartReady(vehicle)) {
+            skippedIds << vehicle->id();
+            continue;
+        }
+
+        _dispatchStartMission(vehicle, delayMs);
+        dispatchedIds << vehicle->id();
+        delayMs += 200;
+    }
+
+    for (int id : requestedIds) {
+        if (!matchedIds.contains(id)) {
+            skippedIds << id;
+        }
+    }
+
+    const bool ok = !dispatchedIds.isEmpty();
+    return _result(ok,
+                   ok ? tr("Each selected vehicle was told to start its own onboard mission.")
+                      : tr("No selected vehicle had a ready onboard mission."),
+                   dispatchedIds,
+                   skippedIds);
 }
 
 QVariantMap SwarmController::sendStartCommand()
@@ -245,6 +352,40 @@ bool SwarmController::_vehicleReady(Vehicle* vehicle) const
     return ok && altitude >= kMinimumGuidedAltitudeMeters;
 }
 
+bool SwarmController::_vehicleTakeoffReady(Vehicle* vehicle, double altitudeMeters) const
+{
+    if (!vehicle
+        || !vehicle->isInitialConnectComplete()
+        || !vehicle->vehicleLinkManager()
+        || vehicle->vehicleLinkManager()->communicationLost()
+        || !vehicle->guidedModeSupported()
+        || !vehicle->takeoffVehicleSupported()
+        || vehicle->flying()
+        || altitudeMeters < vehicle->minimumTakeoffAltitude()) {
+        return false;
+    }
+
+    HealthAndArmingCheckReport* report = vehicle->healthAndArmingCheckReport();
+    return !report || !report->supported() || report->canTakeoff();
+}
+
+bool SwarmController::_vehicleMissionStartReady(Vehicle* vehicle) const
+{
+    if (!vehicle
+        || !vehicle->isInitialConnectComplete()
+        || !vehicle->vehicleLinkManager()
+        || vehicle->vehicleLinkManager()->communicationLost()
+        || !vehicle->missionManager()
+        || vehicle->missionManager()->inProgress()
+        || vehicle->missionManager()->missionItems().isEmpty()
+        || vehicle->flightMode() == vehicle->missionFlightMode()) {
+        return false;
+    }
+
+    HealthAndArmingCheckReport* report = vehicle->healthAndArmingCheckReport();
+    return !report || !report->supported() || report->canStartMission();
+}
+
 void SwarmController::_dispatchGoto(Vehicle* vehicle, const QGeoCoordinate& coordinate, int delayMs)
 {
     QPointer<Vehicle> guardedVehicle(vehicle);
@@ -262,6 +403,26 @@ void SwarmController::_dispatchGoto(Vehicle* vehicle, const QGeoCoordinate& coor
             });
         } else {
             guardedVehicle->guidedModeGotoLocation(coordinate);
+        }
+    });
+}
+
+void SwarmController::_dispatchTakeoff(Vehicle* vehicle, double altitudeMeters, int delayMs)
+{
+    QPointer<Vehicle> guardedVehicle(vehicle);
+    QTimer::singleShot(delayMs, this, [this, guardedVehicle, altitudeMeters]() {
+        if (guardedVehicle && _vehicleTakeoffReady(guardedVehicle, altitudeMeters)) {
+            guardedVehicle->guidedModeTakeoff(altitudeMeters);
+        }
+    });
+}
+
+void SwarmController::_dispatchStartMission(Vehicle* vehicle, int delayMs)
+{
+    QPointer<Vehicle> guardedVehicle(vehicle);
+    QTimer::singleShot(delayMs, this, [this, guardedVehicle]() {
+        if (guardedVehicle && _vehicleMissionStartReady(guardedVehicle)) {
+            guardedVehicle->startMission();
         }
     });
 }

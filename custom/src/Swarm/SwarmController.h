@@ -20,6 +20,8 @@ public:
 
     Q_INVOKABLE QVariantMap executeGoto(const QVariantList& selectedVehicleIds, const QVariant& targetCoordinate);
     Q_INVOKABLE QVariantMap executeQueuedGoto(const QVariantList& selectedVehicleIds, const QVariantList& queuedCoordinates);
+    Q_INVOKABLE QVariantMap executeTakeoff(const QVariantList& selectedVehicleIds, double altitudeMeters);
+    Q_INVOKABLE QVariantMap executeStartMissions(const QVariantList& selectedVehicleIds);
     Q_INVOKABLE QVariantMap sendStartCommand();
 
 private slots:
@@ -31,7 +33,11 @@ private:
     QVariantMap _result(bool ok, const QString& message, const QList<int>& dispatchedIds = QList<int>(), const QList<int>& skippedIds = QList<int>()) const;
     QGeoCoordinate _coordinateFromVariant(const QVariant& value) const;
     bool _vehicleReady(Vehicle* vehicle) const;
+    bool _vehicleTakeoffReady(Vehicle* vehicle, double altitudeMeters) const;
+    bool _vehicleMissionStartReady(Vehicle* vehicle) const;
     void _dispatchGoto(Vehicle* vehicle, const QGeoCoordinate& coordinate, int delayMs);
+    void _dispatchTakeoff(Vehicle* vehicle, double altitudeMeters, int delayMs);
+    void _dispatchStartMission(Vehicle* vehicle, int delayMs);
     void _dispatchTemporaryMission(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates, int delayMs);
     QList<MissionItem*> _buildTemporaryMissionItems(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates) const;
     double _relativeAltitudeMeters(Vehicle* vehicle, double fallbackMeters) const;

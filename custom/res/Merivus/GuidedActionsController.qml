@@ -36,6 +36,7 @@ Item {
     property var actionList
     property var guidedValueSlider
     property var orbitMapCircle
+    property var selectedVehicleIds: []
 
     readonly property string emergencyStopTitle:            qsTr("EMERGENCY STOP")
     readonly property string armTitle:                      qsTr("Arm")
@@ -62,7 +63,7 @@ Item {
     readonly property string roiTitle:                      qsTr("ROI")
     readonly property string setHomeTitle:                  qsTr("Set Home")
     readonly property string actionListTitle:               qsTr("Action")
-    readonly property string swarmTitle:                   qsTr("编队")
+    readonly property string swarmTitle:                   qsTr("编队任务")
 
     readonly property string armMessage:                        qsTr("Arm the vehicle.")
     readonly property string forceArmMessage:                   qsTr("WARNING: This will force arming of the vehicle bypassing any safety checks.")
@@ -88,7 +89,7 @@ Item {
     readonly property string vtolTransitionMRMessage:           qsTr("Transition VTOL to multi-rotor flight.")
     readonly property string roiMessage:                        qsTr("Make the specified location a Region Of Interest.")
     readonly property string setHomeMessage:                    qsTr("Set vehicle home as the specified location. This will affect Return to Home position")
-    readonly property string swarmMessage:                     qsTr("启动编队")
+    readonly property string swarmMessage:                     qsTr("让框选无人机分别启动各自已上传的机载任务。")
 
     readonly property int actionRTL:                        1
     readonly property int actionLand:                       2
@@ -194,14 +195,55 @@ Item {
         }
     }
 
+    function _snapshotVehicleIds(ids) {
+        var snapshot = []
+        if (!ids || ids.length === undefined) return snapshot
+        for (var i = 0; i < ids.length; i++) snapshot.push(Number(ids[i]))
+        return snapshot
+    }
+
+    function _vehicleIdsText(ids) {
+        return ids && ids.length > 0 ? ids.join(", ") : "--"
+    }
+
+    function _takeoffMinimumForTargets(ids) {
+        var minimum = _activeVehicle ? _activeVehicle.minimumTakeoffAltitude() : 0
+        if (!ids || ids.length === 0) return minimum
+
+        for (var i = 0; i < ids.length; i++) {
+            var vehicle = QGroundControl.multiVehicleManager.getVehicleById(ids[i])
+            if (vehicle) minimum = Math.max(minimum, vehicle.minimumTakeoffAltitude())
+        }
+        return minimum
+    }
+
+    function _showBatchResult(title, result, showSuccess) {
+        if (!result) return
+
+        var dispatched = result.dispatchedIds ? result.dispatchedIds : []
+        var skipped = result.skippedIds ? result.skippedIds : []
+        if (!showSuccess && result.ok && skipped.length === 0) return
+
+        var lines = []
+        if (result.message) lines.push(result.message)
+        if (dispatched.length > 0) {
+            lines.push(qsTr("已下发：UAV-%1").arg(dispatched.join(", UAV-")))
+        }
+        if (skipped.length > 0) {
+            lines.push(qsTr("已跳过：UAV-%1（请检查链路、健康状态、任务和飞行状态）").arg(skipped.join(", UAV-")))
+        }
+        mainWindow.showMessageDialog(title, lines.join("\n"))
+    }
+
     function setupSlider(actionCode) {
         // generic defaults
         guidedValueSlider.configureAsLinearSlider()
         guidedValueSlider.setIsSpeedSlider(false)
 
         if (actionCode === actionTakeoff) {
-                guidedValueSlider.setMinVal(_activeVehicle.minimumTakeoffAltitude())
-                guidedValueSlider.setValue(_activeVehicle ? _activeVehicle.minimumTakeoffAltitude() : 0)
+                var takeoffMinimum = _takeoffMinimumForTargets(_actionData)
+                guidedValueSlider.setMinVal(takeoffMinimum)
+                guidedValueSlider.setValue(takeoffMinimum)
                 guidedValueSlider.setDisplayText("Height")
         } else if (actionCode === actionChangeSpeed) {
             guidedValueSlider.setIsSpeedSlider(true)
@@ -374,11 +416,18 @@ Item {
         var showImmediate = true
         closeAll()
         confirmDialog.action = actionCode
-        confirmDialog.actionData = actionData
         confirmDialog.hideTrigger = true
         confirmDialog.mapIndicator = mapIndicator
         confirmDialog.optionText = ""
-        _actionData = actionData
+
+        var frozenActionData = actionData
+        if (actionCode === actionTakeoff || actionCode === actionSwarm) {
+            frozenActionData = actionData && actionData.length !== undefined
+                    ? _snapshotVehicleIds(actionData)
+                    : _snapshotVehicleIds(selectedVehicleIds)
+        }
+        _actionData = frozenActionData
+        confirmDialog.actionData = frozenActionData
 
         setupSlider(actionCode)
 
@@ -411,8 +460,14 @@ Item {
             break;
         case actionTakeoff:
             confirmDialog.title = takeoffTitle
-            confirmDialog.message = takeoffMessage
-            confirmDialog.hideTrigger = Qt.binding(function() { return !showTakeoff })
+            if (_actionData && _actionData.length > 0) {
+                confirmDialog.message = qsTr("让框选的 %1 架无人机起飞并定高悬停。\n目标：UAV-%2")
+                                                .arg(_actionData.length).arg(_vehicleIdsText(_actionData))
+                confirmDialog.hideTrigger = true
+            } else {
+                confirmDialog.message = takeoffMessage
+                confirmDialog.hideTrigger = Qt.binding(function() { return !showTakeoff })
+            }
             guidedValueSlider.visible = true
             break;
         case actionStartMission:
@@ -527,8 +582,12 @@ Item {
             confirmDialog.hideTrigger = Qt.binding(function() { return !showSetHome })
             break
         case actionSwarm:
+            if (!_actionData || _actionData.length < 2) {
+                mainWindow.showMessageDialog(qsTr("无法启动编队任务"), qsTr("请先在地图或机群列表中框选至少两架无人机。"))
+                return
+            }
             confirmDialog.title = swarmTitle
-            confirmDialog.message = swarmMessage
+            confirmDialog.message = swarmMessage + "\n" + qsTr("目标：UAV-%1").arg(_vehicleIdsText(_actionData))
             confirmDialog.hideTrigger =true
             break
         default:
@@ -542,6 +601,7 @@ Item {
     function executeAction(actionCode, actionData, sliderOutputValue, optionChecked) {
         var i;
         var rgVehicle;
+        var result;
         switch (actionCode) {
         case actionRTL:
             _activeVehicle.guidedModeRTL(optionChecked)
@@ -550,7 +610,12 @@ Item {
             _activeVehicle.guidedModeLand()
             break
         case actionTakeoff:
-            _activeVehicle.guidedModeTakeoff(sliderOutputValue)
+            if (actionData && actionData.length > 0) {
+                result = _swarm.executeTakeoff(actionData, sliderOutputValue)
+                _showBatchResult(qsTr("批量起飞"), result, false)
+            } else {
+                _activeVehicle.guidedModeTakeoff(sliderOutputValue)
+            }
             break
         case actionResumeMission:
         case actionResumeMissionUploadFail:
@@ -629,7 +694,8 @@ Item {
             _activeVehicle.doSetHome(actionData)
             break
         case actionSwarm:
-            _swarm.sendStartCommand()
+            result = _swarm.executeStartMissions(actionData ? actionData : [])
+            _showBatchResult(qsTr("编队任务"), result, true)
             break
         default:
             console.warn(qsTr("Internal error: unknown actionCode"), actionCode)
