@@ -57,8 +57,10 @@ FlightMap {
 
     // 【原有】用于保存当前框选的多架无人机 ID 集合
     property var    selectedSwarmIds:       []
+    property bool   suppressExclusiveSelectionSync: false
 
     function setVehicleSelection(vehicleId, selected) {
+        if (shiftQueuedCoords.length > 0) _cancelShiftDraft()
         var nextSelection = selectedSwarmIds ? selectedSwarmIds.slice(0) : []
         var selectionIndex = nextSelection.indexOf(vehicleId)
 
@@ -69,12 +71,14 @@ FlightMap {
         }
 
         selectedSwarmIds = nextSelection
-        if (selected) shiftCommittedCoords = []
 
         if (selected) {
             var selectedVehicle = QGroundControl.multiVehicleManager.getVehicleById(vehicleId)
             if (selectedVehicle) {
+                suppressExclusiveSelectionSync = true
                 QGroundControl.multiVehicleManager.activeVehicle = selectedVehicle
+                suppressExclusiveSelectionSync = false
+                _showCurrentTaskRoute(vehicleId)
             }
         }
     }
@@ -85,39 +89,120 @@ FlightMap {
             return
         }
 
+        if (shiftQueuedCoords.length > 0) _cancelShiftDraft()
+        selectedSwarmIds = [vehicleId]
+        suppressExclusiveSelectionSync = true
         QGroundControl.multiVehicleManager.activeVehicle = vehicle
+        suppressExclusiveSelectionSync = false
+        _showCurrentTaskRoute(vehicleId)
+    }
 
-        if (selectedSwarmIds.length > 0 && selectedSwarmIds.indexOf(vehicleId) !== -1) {
-            var reordered = selectedSwarmIds.slice(0)
-            reordered.splice(reordered.indexOf(vehicleId), 1)
-            reordered.unshift(vehicleId)
-            selectedSwarmIds = reordered
-        }
+    function clearVehicleSelection() {
+        if (shiftQueuedCoords.length > 0) _cancelShiftDraft()
+        selectedSwarmIds = []
+        shiftCommittedCoords = []
     }
 
     // 【新增】用于保存按住 Shift 时右键连续指点产生的全局地理坐标队列
     property var    shiftQueuedCoords:      []
     property var    shiftCommittedCoords:   []
+    property var    shiftFrozenVehicleIds:  []
+    property var    shiftFrozenReferences:  []
+    property bool   shiftReplacementRequired: false
+    property var    activeTaskRoutes: ({})
     property bool   shiftMissionConfirmPending: false
+
+    function _cancelShiftDraft() {
+        shiftQueuedCoords = []
+        shiftFrozenVehicleIds = []
+        shiftFrozenReferences = []
+        shiftReplacementRequired = false
+        shiftMissionConfirmPending = false
+        _showCurrentTaskRoute(_activeVehicle ? _activeVehicle.id : -1)
+    }
+
+    function _showCurrentTaskRoute(vehicleId) {
+        var route = activeTaskRoutes[String(vehicleId)]
+        shiftCommittedCoords = route ? route.slice(0) : []
+    }
+
+    function _cloneRouteMap() {
+        var clone = {}
+        for (var key in activeTaskRoutes) {
+            if (activeTaskRoutes.hasOwnProperty(key)) clone[key] = activeTaskRoutes[key]
+        }
+        return clone
+    }
+
+    function _freezeShiftTargets() {
+        var ids = selectedSwarmIds && selectedSwarmIds.length > 0
+                ? selectedSwarmIds.slice(0)
+                : (_activeVehicle ? [_activeVehicle.id] : [])
+        if (ids.length === 0) {
+            mainWindow.showMessageDialog(qsTr("无法创建航点队列"), qsTr("请先选择至少一架无人机。"))
+            return false
+        }
+
+        var references = []
+        for (var i = 0; i < ids.length; i++) {
+            var vehicle = QGroundControl.multiVehicleManager.getVehicleById(ids[i])
+            if (!vehicle || !vehicle.coordinate || !vehicle.coordinate.isValid) {
+                mainWindow.showMessageDialog(qsTr("无法创建航点队列"), qsTr("UAV-%1 没有有效位置。").arg(ids[i]))
+                return false
+            }
+            references.push(vehicle.coordinate)
+        }
+        shiftFrozenVehicleIds = ids
+        shiftFrozenReferences = references
+        return true
+    }
 
     MessageDialog {
         id: temporaryMissionConfirmDialog
-        title: qsTr("Temporary Mission Route")
-        text: qsTr("Upload the current preview route as a temporary Mission to the selected vehicles. Confirming will replace the vehicle mission and start execution.\n\nWaypoint count: ") + _root.shiftQueuedCoords.length
+        title: qsTr("确认实时航点队列")
+        text: qsTr("目标：UAV-%1\n航点数：%2\n%3")
+                .arg(_root.shiftFrozenVehicleIds.join(", UAV-"))
+                .arg(_root.shiftQueuedCoords.length)
+                .arg(_root.shiftReplacementRequired
+                     ? qsTr("目标中存在正在执行或未清理的任务；确认后将悬停并替换该任务。")
+                     : qsTr("确认后上传并执行本次临时任务。"))
         standardButtons: StandardButton.Yes | StandardButton.No
         onYes: {
             _root.shiftMissionConfirmPending = false
             _root.executeBatchQueuedFly()
         }
         onNo: {
-            _root.shiftMissionConfirmPending = false
-            _root.shiftQueuedCoords = []
-            _root.shiftCommittedCoords = []
+            _root._cancelShiftDraft()
         }
         onRejected: {
-            _root.shiftMissionConfirmPending = false
-            _root.shiftQueuedCoords = []
-            _root.shiftCommittedCoords = []
+            _root._cancelShiftDraft()
+        }
+    }
+
+    Connections {
+        target: QGroundControl.multiVehicleManager
+        function onActiveVehicleChanged(activeVehicle) {
+            if (_root.suppressExclusiveSelectionSync) return
+            if (_root.shiftQueuedCoords.length > 0) _root._cancelShiftDraft()
+            _root.selectedSwarmIds = activeVehicle ? [activeVehicle.id] : []
+            _root._showCurrentTaskRoute(activeVehicle ? activeVehicle.id : -1)
+        }
+    }
+
+    Connections {
+        target: swarmController
+        function onTemporaryMissionCompleted(vehicleId, clearError) {
+            var routes = _root._cloneRouteMap()
+            delete routes[String(vehicleId)]
+            _root.activeTaskRoutes = routes
+            if (_root._activeVehicle && _root._activeVehicle.id === vehicleId) {
+                _root.shiftCommittedCoords = []
+            }
+            if (clearError) {
+                mainWindow.showMessageDialog(
+                    qsTr("临时任务清理失败"),
+                    qsTr("UAV-%1 的旧任务未收到清除 ACK，已标记为残留任务；再次下达队列任务时必须确认替换。").arg(vehicleId))
+            }
         }
     }
 
@@ -414,6 +499,7 @@ FlightMap {
             largeMapView:           !pipMode
             planMasterController:   masterController
             vehicle:                _vehicle
+            visible:                _vehicle && _activeVehicle && _vehicle.id === _activeVehicle.id
             property var _vehicle: object
 
             PlanMasterController {
@@ -884,6 +970,7 @@ FlightMap {
                 // 【新增修改】通过判断 Shift 键修饰符来自动分流操控行为
                 if (mouse.modifiers & Qt.ShiftModifier) {
                     // 行为 A：按住 Shift，追加目标点至航线队列，不立即下发飞控
+                    if (_root.shiftQueuedCoords.length === 0 && !_root._freezeShiftTargets()) return
                     var tempCoords = _root.shiftQueuedCoords.slice(0)
                     tempCoords.push(clickCoord)
                     _root.shiftCommittedCoords = []
@@ -893,8 +980,7 @@ FlightMap {
                     showMobaClickAnimation(clickCoord, "#D8B56A")
                 } else {
                     // 行为 B：未按住 Shift，即经典的即时响应 “MOBA” 单击指点，且自动清除可能残留的队列
-                    _root.shiftQueuedCoords = []
-                    _root.shiftCommittedCoords = []
+                    if (_root.shiftQueuedCoords.length > 0) _root._cancelShiftDraft()
                     executeRightClickFly(clickCoord)
                 }
             }
@@ -934,13 +1020,17 @@ FlightMap {
             }
         }
 
+        if (_root.shiftQueuedCoords.length > 0) _root._cancelShiftDraft()
         console.log("框选成功！选中的无人机 ID 集合: ", JSON.stringify(selectedVehicleIds))
         selectedSwarmIds = selectedVehicleIds
 
         if (selectedVehicleIds.length > 0) {
             var firstSelectedVehicle = QGroundControl.multiVehicleManager.getVehicleById(selectedVehicleIds[0])
             if (firstSelectedVehicle) {
+                suppressExclusiveSelectionSync = true
                 QGroundControl.multiVehicleManager.activeVehicle = firstSelectedVehicle
+                suppressExclusiveSelectionSync = false
+                _showCurrentTaskRoute(firstSelectedVehicle.id)
             }
         }
     }
@@ -982,13 +1072,51 @@ FlightMap {
     function requestBatchQueuedFly() {
         if (_root.shiftQueuedCoords.length === 0 || _root.shiftMissionConfirmPending) return
 
+        _root.shiftReplacementRequired = swarmController.hasActiveTemporaryMission(_root.shiftFrozenVehicleIds)
         _root.shiftMissionConfirmPending = true
         temporaryMissionConfirmDialog.open()
     }
 
+    function _storeTaskRoutes(ids, references, coordinates, dispatchedIds) {
+        if (!ids || ids.length === 0 || ids.length !== references.length) return
+
+        var centerLat = 0
+        var centerLon = 0
+        for (var i = 0; i < references.length; i++) {
+            centerLat += references[i].latitude
+            centerLon += references[i].longitude
+        }
+        var centroid = QtPositioning.coordinate(centerLat / references.length, centerLon / references.length)
+        var routes = _root._cloneRouteMap()
+
+        for (var vehicleIndex = 0; vehicleIndex < ids.length; vehicleIndex++) {
+            if (dispatchedIds && dispatchedIds.indexOf(ids[vehicleIndex]) === -1) continue
+            var route = []
+            for (var pointIndex = 0; pointIndex < coordinates.length; pointIndex++) {
+                var distance = centroid.distanceTo(coordinates[pointIndex])
+                var azimuth = centroid.azimuthTo(coordinates[pointIndex])
+                var vehiclePoint = references[vehicleIndex].atDistanceAndAzimuth(distance, azimuth)
+                vehiclePoint.altitude = coordinates[pointIndex].altitude
+                route.push(vehiclePoint)
+            }
+            routes[String(ids[vehicleIndex])] = route
+        }
+        _root.activeTaskRoutes = routes
+        _root._showCurrentTaskRoute(_root._activeVehicle ? _root._activeVehicle.id : -1)
+    }
+
+    function _removeTaskRoutes(ids) {
+        var routes = _root._cloneRouteMap()
+        for (var i = 0; ids && i < ids.length; i++) delete routes[String(ids[i])]
+        _root.activeTaskRoutes = routes
+        _root._showCurrentTaskRoute(_root._activeVehicle ? _root._activeVehicle.id : -1)
+    }
+
     function executeBatchQueuedFly() {
         var coordsArray = _root.shiftQueuedCoords.slice(0)
-        _root.shiftCommittedCoords = coordsArray.slice(0)
+        var frozenIds = _root.shiftFrozenVehicleIds.slice(0)
+        var frozenReferences = _root.shiftFrozenReferences.slice(0)
+        var replaceExisting = _root.shiftReplacementRequired
         _root.shiftQueuedCoords = []
 
         if (coordsArray.length === 0) return
@@ -1000,8 +1128,14 @@ FlightMap {
 
         gotoLocationItem.show(coordsArray[coordsArray.length - 1])
 
-        var result = swarmController.executeQueuedGoto(selectedSwarmIds, coordsArray)
-        _showSwarmCommandResult(result, qsTr("Temporary Mission Route"))
+        var result = swarmController.executeQueuedGoto(frozenIds, coordsArray, frozenReferences, replaceExisting)
+        if (result && result.ok) {
+            _storeTaskRoutes(frozenIds, frozenReferences, coordsArray, result.dispatchedIds)
+        }
+        _root.shiftFrozenVehicleIds = []
+        _root.shiftFrozenReferences = []
+        _root.shiftReplacementRequired = false
+        _showSwarmCommandResult(result, qsTr("实时航点队列"))
     }
     function executeRightClickFly(targetCoordinate) {
         if (typeof orbitMapCircle !== "undefined") orbitMapCircle.hide()
@@ -1011,6 +1145,7 @@ FlightMap {
         gotoLocationItem.show(targetCoordinate)
 
         var result = swarmController.executeGoto(selectedSwarmIds, targetCoordinate)
+        if (result && result.ok) _removeTaskRoutes(result.dispatchedIds)
         _showSwarmCommandResult(result, "指点飞行")
     }
     function showMobaClickAnimation(coord, customColorStr) {
@@ -1133,6 +1268,6 @@ FlightMap {
 
         onVehicleSelectionRequested: _root.setVehicleSelection(vehicleId, selected)
         onVehicleFocusRequested: _root.focusVehicle(vehicleId)
-        onClearSelectionRequested: _root.selectedSwarmIds = []
+        onClearSelectionRequested: _root.clearVehicleSelection()
     }
 }

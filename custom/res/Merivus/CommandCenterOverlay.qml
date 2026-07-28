@@ -233,6 +233,12 @@ function escFact(vehicle, prefix, motorIndex) {
 
     function selectedIdsSnapshot() { return selectedIds ? selectedIds.slice(0) : [] }
 
+    function hasExactSitlFormationSelection() {
+        if (!selectedIds || selectedIds.length !== 6) return false
+        var sorted = selectedIdsSnapshot().sort(function(a, b) { return Number(a) - Number(b) })
+        return sorted.join(",") === "1,2,3,4,5,6"
+    }
+
     function showFloatingToolTip(sourceItem, text, align) {
         if (!sourceItem || !text) return
         var anchor = sourceItem.mapToItem(root, sourceItem.width, sourceItem.height + 6)
@@ -433,6 +439,16 @@ function escFact(vehicle, prefix, motorIndex) {
                 elide: Text.ElideRight
             }
 
+            QGCLabel {
+                Layout.fillWidth: true
+                text: root.guidedController && root.guidedController.sitlSwarmModeEnabled
+                        ? tr("SITL 编队：已启用")
+                        : tr("SITL 编队：未启用")
+                color: root.guidedController && root.guidedController.sitlSwarmModeEnabled ? root.nominal : qgcPal.colorOrange
+                font.pixelSize: 11
+                font.bold: true
+            }
+
             GridLayout {
                 Layout.fillWidth: true
                 columns: 5
@@ -444,7 +460,16 @@ function escFact(vehicle, prefix, motorIndex) {
                         { title: tr("\u8d77\u98de"), icon: "/res/takeoff.svg", enabled: root.takeoffTargetsAvailable(), type: "guided", action: root.guidedController ? root.guidedController.actionTakeoff : -1 },
                         { title: tr("\u964d\u843d"), icon: "/res/land.svg", enabled: root.guidedController && root.guidedController.showLand, type: "guided", action: root.guidedController ? root.guidedController.actionLand : -1 },
                         { title: tr("\u8fd4\u822a"), icon: "/res/rtl.svg", enabled: root.guidedController && root.guidedController.showRTL, type: "guided", action: root.guidedController ? root.guidedController.actionRTL : -1 },
-                        { title: tr("\u7f16\u961f"), icon: "/qmlimages/swarm.svg", enabled: root.guidedController && root.selectedCount() >= 2, type: "guided", action: root.guidedController ? root.guidedController.actionSwarm : -1 }
+                        {
+                            title: root.guidedController && root.guidedController.formationActive ? tr("结束编队") : tr("\u7f16\u961f"),
+                            icon: "/qmlimages/swarm.svg",
+                            enabled: root.guidedController && (root.guidedController.formationActive
+                                     || (root.guidedController.sitlSwarmModeEnabled && root.hasExactSitlFormationSelection())),
+                            type: "guided",
+                            action: root.guidedController
+                                    ? (root.guidedController.formationActive ? root.guidedController.actionEndSwarm : root.guidedController.actionSwarm)
+                                    : -1
+                        }
                     ]
                     Rectangle {
                         Layout.fillWidth: true
@@ -818,7 +843,6 @@ function escFact(vehicle, prefix, motorIndex) {
                                 acceptedButtons: Qt.LeftButton
                                 onClicked: {
                                     root.vehicleFocusRequested(vehicle.id)
-                                    root.vehicleSelectionRequested(vehicle.id, !root.isSelected(vehicle.id))
                                 }
                             }
                         }

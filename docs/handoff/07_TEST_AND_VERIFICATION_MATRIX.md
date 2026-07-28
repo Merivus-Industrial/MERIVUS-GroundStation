@@ -2,6 +2,20 @@
 
 状态说明：代码/脚本存在不等于测试通过；“历史通过”只说明对应记录时点，不自动证明当前分支已复测。
 
+## 2026-07-28 修复分支补充验证
+
+分支：`sitl-swarm-task-isolation`，基线提交：`d7dfa16`。
+
+| 范围 | 本次命令/证据 | 结果 | 仍未覆盖 |
+| --- | --- | --- | --- |
+| Windows 工具链 | `tools/dev/check-windows-environment.ps1 -VisualStudioRoot E:\VS22\Community` | Qt 5.15.2、MSVC 14.44、Git、Python、jom 检查通过 | 不代表完整 Release 构建通过 |
+| `SwarmController` C++/MOC | qmake 生成 `build/check-sitl-swarm`，定向执行 `nmake SwarmController.obj moc_SwarmController.obj` | **通过** | 未链接完整 MERIVUS 可执行文件 |
+| 变更 QML | `qmllint` 检查 4 个文件；定向构建对应 4 个 qmlcache object | **通过** | 未执行 GUI 交互 smoke |
+| 编队/任务隔离静态回归 | `tools/dev/test-sitl-swarm-task-isolation.ps1` | **通过** | 静态断言不能替代多机运行测试 |
+| Git 文本检查 | `git diff --check` | **通过** | 无 |
+| PX4 SITL | 未启动 | **未验证** | 六机起飞/跟随、断链、任务替换、完成清理和阈值校准 |
+| 实机 | 禁止自动连接 | **未验证且本次不允许** | 正式实机编队协议仍需独立设计 |
+
 | 模块 | 实现状态 | 验证方式 | 最近证据 | 验证结果 | 未验证内容 |
 | --- | --- | --- | --- | --- | --- |
 | Agent 静态代码 | 已实现 | 定向读取 app/provider/schema/tests | 2026-07-20 当前 `a40c9e4` 基线 | 文件与入口存在 | 运行时长期稳定性 |

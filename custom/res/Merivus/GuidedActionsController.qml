@@ -37,6 +37,8 @@ Item {
     property var guidedValueSlider
     property var orbitMapCircle
     property var selectedVehicleIds: []
+    readonly property bool sitlSwarmModeEnabled: _swarm.sitlSwarmModeEnabled
+    readonly property bool formationActive: _swarm.formationActive
 
     readonly property string emergencyStopTitle:            qsTr("EMERGENCY STOP")
     readonly property string armTitle:                      qsTr("Arm")
@@ -63,7 +65,8 @@ Item {
     readonly property string roiTitle:                      qsTr("ROI")
     readonly property string setHomeTitle:                  qsTr("Set Home")
     readonly property string actionListTitle:               qsTr("Action")
-    readonly property string swarmTitle:                   qsTr("编队任务")
+    readonly property string swarmTitle:                   qsTr("SITL 编队任务")
+    readonly property string endSwarmTitle:                qsTr("结束 SITL 编队")
 
     readonly property string armMessage:                        qsTr("Arm the vehicle.")
     readonly property string forceArmMessage:                   qsTr("WARNING: This will force arming of the vehicle bypassing any safety checks.")
@@ -89,7 +92,8 @@ Item {
     readonly property string vtolTransitionMRMessage:           qsTr("Transition VTOL to multi-rotor flight.")
     readonly property string roiMessage:                        qsTr("Make the specified location a Region Of Interest.")
     readonly property string setHomeMessage:                    qsTr("Set vehicle home as the specified location. This will affect Return to Home position")
-    readonly property string swarmMessage:                     qsTr("让框选无人机分别启动各自已上传的机载任务。")
+    readonly property string swarmMessage:                     qsTr("触发 UAV-1 主机与 UAV-2～UAV-6 从机执行既有 SITL 编队逻辑；不会读取或启动任何机载航线任务。")
+    readonly property string endSwarmMessage:                  qsTr("停止主机位置转发，并让仍在线的编队成员原地悬停。")
 
     readonly property int actionRTL:                        1
     readonly property int actionLand:                       2
@@ -119,6 +123,7 @@ Item {
     readonly property int actionGripper:                    26
     readonly property int actionSetHome:                    27
     readonly property int actionSwarm:                      28
+    readonly property int actionEndSwarm:                   29
 
     property var    _activeVehicle:             QGroundControl.multiVehicleManager.activeVehicle
     property bool   _useChecklist:              QGroundControl.settingsManager.appSettings.useChecklist.rawValue && QGroundControl.corePlugin.options.preFlightChecklistUrl.toString().length
@@ -372,6 +377,13 @@ Item {
     }
 
     Connections {
+        target: _swarm
+        function onFormationFault(message) {
+            mainWindow.showMessageDialog(qsTr("SITL 编队异常"), message)
+        }
+    }
+
+    Connections {
         target:                             mainWindow
         function onArmVehicleRequest() { armVehicleRequest() }
         function onForceArmVehicleRequest() { forceArmVehicleRequest() }
@@ -582,13 +594,26 @@ Item {
             confirmDialog.hideTrigger = Qt.binding(function() { return !showSetHome })
             break
         case actionSwarm:
-            if (!_actionData || _actionData.length < 2) {
-                mainWindow.showMessageDialog(qsTr("无法启动编队任务"), qsTr("请先在地图或机群列表中框选至少两架无人机。"))
+            if (!_actionData || _actionData.length !== 6
+                    || _actionData.slice(0).sort(function(a, b) { return a - b }).join(",") !== "1,2,3,4,5,6") {
+                mainWindow.showMessageDialog(qsTr("无法启动 SITL 编队"), qsTr("请明确框选 UAV-1～UAV-6，且不能包含其他目标。"))
                 return
             }
             confirmDialog.title = swarmTitle
-            confirmDialog.message = swarmMessage + "\n" + qsTr("目标：UAV-%1").arg(_vehicleIdsText(_actionData))
+            confirmDialog.message = swarmMessage
+                    + "\n" + qsTr("主机：UAV-1")
+                    + "\n" + qsTr("从机：UAV-2、UAV-3、UAV-4、UAV-5、UAV-6")
+                    + "\n" + (sitlSwarmModeEnabled ? qsTr("SITL 编队模式：已启用") : qsTr("SITL 编队模式：未启用，确认后不会发送"))
             confirmDialog.hideTrigger =true
+            break
+        case actionEndSwarm:
+            if (!formationActive) {
+                mainWindow.showMessageDialog(qsTr("无法结束 SITL 编队"), qsTr("当前没有活动的编队事务。"))
+                return
+            }
+            confirmDialog.title = endSwarmTitle
+            confirmDialog.message = endSwarmMessage
+            confirmDialog.hideTrigger = true
             break
         default:
             console.warn("Unknown actionCode", actionCode)
@@ -694,8 +719,12 @@ Item {
             _activeVehicle.doSetHome(actionData)
             break
         case actionSwarm:
-            result = _swarm.executeStartMissions(actionData ? actionData : [])
+            result = _swarm.sendStartCommand(actionData ? actionData : [])
             _showBatchResult(qsTr("编队任务"), result, true)
+            break
+        case actionEndSwarm:
+            result = _swarm.endFormationSession()
+            _showBatchResult(qsTr("结束编队"), result, true)
             break
         default:
             console.warn(qsTr("Internal error: unknown actionCode"), actionCode)
@@ -703,4 +732,3 @@ Item {
         }
     }
 }
-

@@ -120,7 +120,7 @@ Item {
                     Layout.maximumWidth:    parent.width
                     wrapMode:               QGCLabel.WordWrap
                     visible:                !_planMasterController.managerVehicle.isOfflineEditingVehicle
-                    text:                   qsTr("当前目标为 UAV-%1。每架无人机已上传到飞控的任务彼此独立；若要查看或编辑该机自己的任务，请从车辆加载。保留当前方案会把上一份编辑草稿带到当前车辆上下文，之后上传可能覆盖该机任务。")
+                    text:                   qsTr("当前目标为 UAV-%1。切换车辆不会继承上一架无人机的编辑方案；继续后只加载该机自己的当前任务。原车辆正在执行的任务不会因此中断。")
                                                 .arg(_planMasterController.managerVehicle.id)
                     color:                  qgcPal.warningText
                     font.pointSize:         ScreenTools.smallFontPointSize
@@ -142,13 +142,9 @@ Item {
 
                 QGCButton {
                     Layout.fillWidth:   true
-                    text:               _planMasterController.managerVehicle.isOfflineEditingVehicle ?
-                                            qsTr("Keep Current Plan") :
-                                            qsTr("Keep Current Plan, Don't Update From Vehicle")
+                    visible:            _planMasterController.managerVehicle.isOfflineEditingVehicle
+                    text:               qsTr("Keep Current Plan")
                     onClicked: {
-                        if (!_planMasterController.managerVehicle.isOfflineEditingVehicle) {
-                            _planMasterController.dirty = true
-                        }
                         _promptForPlanUsageShowing = false
                         close()
                     }
