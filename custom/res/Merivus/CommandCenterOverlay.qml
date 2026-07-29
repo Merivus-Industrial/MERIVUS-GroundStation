@@ -296,9 +296,46 @@ function escFact(vehicle, prefix, motorIndex) {
         return false
     }
 
+    function vehicleCanLand(vehicle) {
+        if (!vehicle || !vehicle.initialConnectComplete || !vehicle.guidedModeSupported
+                || !vehicle.armed || !vehicle.flying || vehicle.fixedWing) return false
+        if (vehicle.vehicleLinkManager && vehicle.vehicleLinkManager.communicationLost) return false
+        return vehicle.flightMode !== vehicle.landFlightMode
+    }
+
+    function landTargetsAvailable() {
+        if (!guidedController) return false
+        if (selectedCount() === 0) return guidedController.showLand
+
+        for (var i = 0; i < selectedIds.length; i++) {
+            if (vehicleCanLand(vehicleById(selectedIds[i]))) return true
+        }
+        return false
+    }
+
+    function vehicleCanRTL(vehicle) {
+        if (!vehicle || !vehicle.initialConnectComplete || !vehicle.guidedModeSupported
+                || !vehicle.armed || !vehicle.flying) return false
+        if (vehicle.vehicleLinkManager && vehicle.vehicleLinkManager.communicationLost) return false
+        return vehicle.flightMode !== vehicle.rtlFlightMode && vehicle.flightMode !== vehicle.smartRTLFlightMode
+    }
+
+    function rtlTargetsAvailable() {
+        if (!guidedController) return false
+        if (selectedCount() === 0) return guidedController.showRTL
+
+        for (var i = 0; i < selectedIds.length; i++) {
+            if (vehicleCanRTL(vehicleById(selectedIds[i]))) return true
+        }
+        return false
+    }
+
     function guidedActionData(actionId) {
         if (!guidedController) return undefined
-        return actionId === guidedController.actionTakeoff || actionId === guidedController.actionSwarm
+        return actionId === guidedController.actionTakeoff
+                || actionId === guidedController.actionLand
+                || actionId === guidedController.actionRTL
+                || actionId === guidedController.actionSwarm
                 ? selectedIdsSnapshot() : undefined
     }
 
@@ -442,8 +479,8 @@ function escFact(vehicle, prefix, motorIndex) {
             QGCLabel {
                 Layout.fillWidth: true
                 text: root.guidedController && root.guidedController.sitlSwarmModeEnabled
-                        ? tr("SITL 编队：已启用")
-                        : tr("SITL 编队：未启用")
+                        ? tr("六机编队：已启用")
+                        : tr("六机编队：未启用")
                 color: root.guidedController && root.guidedController.sitlSwarmModeEnabled ? root.nominal : qgcPal.colorOrange
                 font.pixelSize: 11
                 font.bold: true
@@ -458,8 +495,8 @@ function escFact(vehicle, prefix, motorIndex) {
                     model: [
                         { title: tr("\u4efb\u52a1\u89c4\u5212"), icon: "/qmlimages/Plan.svg", enabled: true, type: "plan", action: -1 },
                         { title: tr("\u8d77\u98de"), icon: "/res/takeoff.svg", enabled: root.takeoffTargetsAvailable(), type: "guided", action: root.guidedController ? root.guidedController.actionTakeoff : -1 },
-                        { title: tr("\u964d\u843d"), icon: "/res/land.svg", enabled: root.guidedController && root.guidedController.showLand, type: "guided", action: root.guidedController ? root.guidedController.actionLand : -1 },
-                        { title: tr("\u8fd4\u822a"), icon: "/res/rtl.svg", enabled: root.guidedController && root.guidedController.showRTL, type: "guided", action: root.guidedController ? root.guidedController.actionRTL : -1 },
+                        { title: tr("\u964d\u843d"), icon: "/res/land.svg", enabled: root.landTargetsAvailable(), type: "guided", action: root.guidedController ? root.guidedController.actionLand : -1 },
+                        { title: tr("\u8fd4\u822a"), icon: "/res/rtl.svg", enabled: root.rtlTargetsAvailable(), type: "guided", action: root.guidedController ? root.guidedController.actionRTL : -1 },
                         {
                             title: root.guidedController && root.guidedController.formationActive ? tr("结束编队") : tr("\u7f16\u961f"),
                             icon: "/qmlimages/swarm.svg",

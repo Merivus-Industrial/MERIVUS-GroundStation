@@ -91,13 +91,13 @@
 
 ## 推荐收敛方向
 
-- 在 `hotfix/safety-containment` 中先做临时安全封锁：AI 飞行动作只生成建议，不执行；`SwarmController` legacy forwarding 和临时任务自动启动均由默认关闭的开发开关保护。
+- AI 飞行动作只生成建议，不执行。经 2026-07-29 产品决策，`SwarmController` 的人工编队入口和 Shift 临时任务入口默认启用，不再读取环境变量；前者强制完整 UAV-1～UAV-6、全员就绪和人工确认，后者强制冻结目标与几何关系并人工确认。
 - 阶段 1 先保护当前 TCP Link，可增加只读诊断，不改真实命令发送路径。
 - 阶段 2 先把 AI 面板收敛为 Mock/只读/建议，不接真实飞行动作。
 - 阶段 4 后 QML 不直接访问网络，统一经 C++ `AiAgentClient`。
 - 阶段 6 建立 `ActionProposal`、schema 校验、本地风险重算和固定 command 枚举。
 - 阶段 7 再做高风险命令确认框架，先使用 Mock Executor。
-- `SwarmController` 中的真实任务上传、启动和 legacy MAVLink 逻辑应单独审计，必要时加 feature flag 或隐藏入口。
+- `SwarmController` 中的真实任务上传、启动和 legacy MAVLink 逻辑仍需单独审计；默认启用不代表机载接收端、ACK、失联保护或实机编队已经验证。
 
 ## 用户描述但尚未验证
 

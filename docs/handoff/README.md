@@ -8,7 +8,7 @@
 
 MERIVUS 是基于 QGroundControl Custom Build 的多无人机调度地面站研发项目。当前版本是 `0.1.0-dev.1` 开发测试初版：QGC 定制 UI、本机 Python Agent、Mock/Ollama Provider、C++ Agent Client/Supervisor、`ActionProposal`、Schema/Policy 和 Windows 打包脚本均已进入仓库；AI 链路当前只回答、解释和展示结构化建议，**没有连接 Vehicle、MAVLink、PX4 或 Swarm 的 AI 执行器**。
 
-项目正处于“阶段初版已收口，转入安全收敛和可重复验证”的阶段，不是生产版本。当前唯一优先任务是：**在不接真实飞机的前提下，对 QGC 非 AI 高风险执行入口（`CommandCenterOverlay`、`FlyViewMap`、`SwarmController`）建立统一清单、默认关闭边界和 Mock/SITL 回归基线**。详见 [下一步](09_NEXT_STEPS.md)。
+项目正处于“阶段初版已收口，转入安全收敛和可重复验证”的阶段，不是生产版本。当前唯一优先任务是：**在不接真实飞机的前提下，对 QGC 非 AI 高风险执行入口（`CommandCenterOverlay`、`FlyViewMap`、`SwarmController`）建立统一清单、可见确认边界和 Mock/SITL 回归基线**。六机人工编队与 Shift 临时任务已按 2026-07-29 产品决策改为默认启用；AI 飞行动作仍默认关闭。详见 [下一步](09_NEXT_STEPS.md)。
 
 ```mermaid
 flowchart LR

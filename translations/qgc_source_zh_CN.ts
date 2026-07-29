@@ -18349,5 +18349,141 @@ Confirm change?</source>
       <source>Temporary swarm mission upload started.</source>
       <translation>多机临时航线任务已开始上传。</translation>
     </message>
+    <message>
+      <source>Batch takeoff commands scheduled for the selected vehicles.</source>
+      <translation>已为选中的无人机安排批量起飞指令。</translation>
+    </message>
+    <message>
+      <source>No selected vehicle met the takeoff requirements.</source>
+      <translation>选中的无人机均不满足起飞条件。</translation>
+    </message>
+    <message>
+      <source>Batch landing commands scheduled for the selected vehicles.</source>
+      <translation>已为选中的无人机安排批量降落指令。</translation>
+    </message>
+    <message>
+      <source>No selected vehicle met the landing requirements.</source>
+      <translation>选中的无人机均不满足降落条件。</translation>
+    </message>
+    <message>
+      <source>Batch return commands scheduled for the selected vehicles.</source>
+      <translation>已为选中的无人机安排批量返航指令。</translation>
+    </message>
+    <message>
+      <source>No selected vehicle met the return requirements.</source>
+      <translation>选中的无人机均不满足返航条件。</translation>
+    </message>
+    <message>
+      <source>The formation requires exactly UAV-1 through UAV-6.</source>
+      <translation>编队目标必须恰好为 UAV-1 至 UAV-6。</translation>
+    </message>
+    <message>
+      <source>The formation target must contain each ID from 1 through 6 exactly once.</source>
+      <translation>编队目标必须包含且仅包含 ID 1 至 6，每个 ID 只能出现一次。</translation>
+    </message>
+    <message>
+      <source>All six formation vehicles must be connected, on the ground, and ready before formation start.</source>
+      <translation>启动编队前，六架无人机必须全部在线、位于地面且满足起飞条件。</translation>
+    </message>
+    <message>
+      <source>Formation start signal sent to UAV-1.</source>
+      <translation>编队启动信号已发送至 UAV-1。</translation>
+    </message>
+    <message>
+      <source>Formation forwarding stopped; connected members were told to hold position.</source>
+      <translation>编队转发已停止，已通知仍在线的成员保持当前位置。</translation>
+    </message>
+    <message>
+      <source>UAV-1 telemetry timed out. Connected followers were told to hold position.</source>
+      <translation>UAV-1 遥测超时，已通知仍在线的从机保持当前位置。</translation>
+    </message>
+    <message>
+      <source>UAV-%1 is disconnected. The remaining formation continues.</source>
+      <translation>UAV-%1 已断开，其余编队成员继续执行。</translation>
+    </message>
+    <message>
+      <source>A formation session is already active. End it before starting another one.</source>
+      <translation>已有编队任务正在运行，请先结束当前编队。</translation>
+    </message>
+    <message>
+      <source>Goto command dispatched.</source>
+      <translation>目标点指令已下发。</translation>
+    </message>
+    <message>
+      <source>Invalid or duplicate vehicle IDs in selection.</source>
+      <translation>选择中存在无效或重复的无人机 ID。</translation>
+    </message>
+    <message>
+      <source>Invalid target coordinate.</source>
+      <translation>目标坐标无效。</translation>
+    </message>
+    <message>
+      <source>No formation session is active.</source>
+      <translation>当前没有正在运行的编队任务。</translation>
+    </message>
+    <message>
+      <source>No selected vehicle met the safety requirements.</source>
+      <translation>选中的无人机均不满足安全条件。</translation>
+    </message>
+    <message>
+      <source>No target coordinate.</source>
+      <translation>没有可用的目标坐标。</translation>
+    </message>
+    <message>
+      <source>No valid queued coordinates.</source>
+      <translation>队列中没有有效航点。</translation>
+    </message>
+    <message>
+      <source>No vehicle available.</source>
+      <translation>没有可用的无人机。</translation>
+    </message>
+    <message>
+      <source>One or more target vehicles already have an active or uncleared temporary mission.</source>
+      <translation>一个或多个目标已有正在执行或尚未清理的临时任务。</translation>
+    </message>
+    <message>
+      <source>Select at least one vehicle before batch landing.</source>
+      <translation>批量降落前请至少选择一架无人机。</translation>
+    </message>
+    <message>
+      <source>Select at least one vehicle before batch return.</source>
+      <translation>批量返航前请至少选择一架无人机。</translation>
+    </message>
+    <message>
+      <source>Select at least one vehicle before batch takeoff.</source>
+      <translation>批量起飞前请至少选择一架无人机。</translation>
+    </message>
+    <message>
+      <source>Selected vehicles do not have valid positions.</source>
+      <translation>选中的无人机缺少有效位置。</translation>
+    </message>
+    <message>
+      <source>Swarm goto command dispatched.</source>
+      <translation>多机目标点指令已下发。</translation>
+    </message>
+    <message>
+      <source>Takeoff altitude must be greater than zero.</source>
+      <translation>起飞高度必须大于零。</translation>
+    </message>
+    <message>
+      <source>The frozen target geometry does not match the selected vehicle set.</source>
+      <translation>冻结的目标几何关系与所选无人机集合不一致。</translation>
+    </message>
+    <message>
+      <source>The frozen vehicle geometry contains an invalid coordinate.</source>
+      <translation>冻结的无人机几何关系中包含无效坐标。</translation>
+    </message>
+    <message>
+      <source>UAV-1 does not have an active primary link.</source>
+      <translation>UAV-1 没有可用的主链路。</translation>
+    </message>
+    <message>
+      <source>Vehicle is not armed or is below the minimum safe altitude.</source>
+      <translation>无人机尚未解锁或低于最低安全高度。</translation>
+    </message>
+    <message>
+      <source>Vehicle selection contains an invalid or duplicate ID.</source>
+      <translation>选择中包含无效或重复的无人机 ID。</translation>
+    </message>
   </context>
 </TS>

@@ -31,6 +31,8 @@ public:
                                               const QVariantList& referenceCoordinates,
                                               bool replaceExisting);
     Q_INVOKABLE QVariantMap executeTakeoff(const QVariantList& selectedVehicleIds, double altitudeMeters);
+    Q_INVOKABLE QVariantMap executeLand(const QVariantList& selectedVehicleIds);
+    Q_INVOKABLE QVariantMap executeRTL(const QVariantList& selectedVehicleIds);
     Q_INVOKABLE bool hasActiveTemporaryMission(const QVariantList& selectedVehicleIds) const;
     Q_INVOKABLE QVariantMap sendStartCommand(const QVariantList& selectedVehicleIds);
     Q_INVOKABLE QVariantMap endFormationSession();
@@ -74,9 +76,13 @@ private:
     QGeoCoordinate _coordinateFromVariant(const QVariant& value) const;
     bool _vehicleReady(Vehicle* vehicle) const;
     bool _vehicleTakeoffReady(Vehicle* vehicle, double altitudeMeters) const;
+    bool _vehicleLandReady(Vehicle* vehicle) const;
+    bool _vehicleRTLReady(Vehicle* vehicle) const;
     bool _vehicleFormationReady(Vehicle* vehicle) const;
     void _dispatchGoto(Vehicle* vehicle, const QGeoCoordinate& coordinate, int delayMs);
     void _dispatchTakeoff(Vehicle* vehicle, double altitudeMeters, int delayMs);
+    void _dispatchLand(Vehicle* vehicle, int delayMs);
+    void _dispatchRTL(Vehicle* vehicle, int delayMs);
     void _dispatchTemporaryMission(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates, int delayMs, bool replaceExisting);
     void _ensureTemporaryMissionConnections(Vehicle* vehicle);
     void _handleTemporaryMissionSendComplete(Vehicle* vehicle, bool error);
@@ -85,8 +91,6 @@ private:
     void _requestTemporaryMissionClear(Vehicle* vehicle);
     QList<MissionItem*> _buildTemporaryMissionItems(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates) const;
     double _relativeAltitudeMeters(Vehicle* vehicle, double fallbackMeters) const;
-    bool _legacyForwardingFeatureEnabled() const;
-    bool _autoStartMissionFeatureEnabled() const;
     void _ensureLegacyForwardingConnected();
     bool _sendLegacyStartPacket();
     void _setFormationActive(bool active);
@@ -103,6 +107,10 @@ private:
     QSet<int> _temporaryMissionConnections;
     QSet<int> _staleTemporaryMissionIds;
     QTimer _temporaryMissionTimer;
+    // Product defaults: LEGACY_FORWARDING controls the formation entry;
+    // AUTO_START_MISSION controls Shift temporary mission execution.
+    static constexpr bool kLegacyForwardingFeatureEnabled = true;
+    static constexpr bool kAutoStartMissionFeatureEnabled = true;
     static const double kMinimumGuidedAltitudeMeters;
     static const double kDefaultMissionAltitudeMeters;
 };

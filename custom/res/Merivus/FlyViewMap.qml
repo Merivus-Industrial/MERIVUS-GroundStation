@@ -11,7 +11,6 @@ import QtQuick                    2.11
 import QtQuick.Controls             2.4
 import QtLocation                   5.3
 import QtPositioning                5.3
-import QtQuick.Dialogs              1.2
 import QtQuick.Layouts              1.11
 
 import QGroundControl               1.0
@@ -112,7 +111,27 @@ FlightMap {
     property var    activeTaskRoutes: ({})
     property bool   shiftMissionConfirmPending: false
 
-    function _cancelShiftDraft() {
+    QtObject {
+        id: shiftMissionConfirmationAdapter
+
+        function actionConfirmed() {
+            _root.shiftMissionConfirmPending = false
+            _root.executeBatchQueuedFly()
+        }
+
+        function actionCancelled() {
+            _root._cancelShiftDraft(true)
+        }
+    }
+
+    function _cancelShiftDraft(fromConfirmation) {
+        if (!fromConfirmation && shiftMissionConfirmPending
+                && globals.guidedControllerFlyView
+                && globals.guidedControllerFlyView.confirmDialog
+                && globals.guidedControllerFlyView.confirmDialog.mapIndicator === shiftMissionConfirmationAdapter) {
+            shiftMissionConfirmPending = false
+            globals.guidedControllerFlyView.confirmDialog.confirmCancelled()
+        }
         shiftQueuedCoords = []
         shiftFrozenVehicleIds = []
         shiftFrozenReferences = []
@@ -155,28 +174,6 @@ FlightMap {
         shiftFrozenVehicleIds = ids
         shiftFrozenReferences = references
         return true
-    }
-
-    MessageDialog {
-        id: temporaryMissionConfirmDialog
-        title: qsTr("确认实时航点队列")
-        text: qsTr("目标：UAV-%1\n航点数：%2\n%3")
-                .arg(_root.shiftFrozenVehicleIds.join(", UAV-"))
-                .arg(_root.shiftQueuedCoords.length)
-                .arg(_root.shiftReplacementRequired
-                     ? qsTr("目标中存在正在执行或未清理的任务；确认后将悬停并替换该任务。")
-                     : qsTr("确认后上传并执行本次临时任务。"))
-        standardButtons: StandardButton.Yes | StandardButton.No
-        onYes: {
-            _root.shiftMissionConfirmPending = false
-            _root.executeBatchQueuedFly()
-        }
-        onNo: {
-            _root._cancelShiftDraft()
-        }
-        onRejected: {
-            _root._cancelShiftDraft()
-        }
     }
 
     Connections {
@@ -1074,7 +1071,19 @@ FlightMap {
 
         _root.shiftReplacementRequired = swarmController.hasActiveTemporaryMission(_root.shiftFrozenVehicleIds)
         _root.shiftMissionConfirmPending = true
-        temporaryMissionConfirmDialog.open()
+        var guidedController = globals.guidedControllerFlyView
+        if (!guidedController) {
+            _root._cancelShiftDraft()
+            return
+        }
+        guidedController.confirmAction(
+            guidedController.actionQueuedMission,
+            {
+                vehicleIds: _root.shiftFrozenVehicleIds.slice(0),
+                waypointCount: _root.shiftQueuedCoords.length,
+                replacementRequired: _root.shiftReplacementRequired
+            },
+            shiftMissionConfirmationAdapter)
     }
 
     function _storeTaskRoutes(ids, references, coordinates, dispatchedIds) {
@@ -1113,6 +1122,7 @@ FlightMap {
     }
 
     function executeBatchQueuedFly() {
+        _root.shiftMissionConfirmPending = false
         var coordsArray = _root.shiftQueuedCoords.slice(0)
         var frozenIds = _root.shiftFrozenVehicleIds.slice(0)
         var frozenReferences = _root.shiftFrozenReferences.slice(0)

@@ -4,6 +4,16 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 
 $requiredChecks = @(
     @{
+        Path = "custom/src/Swarm/SwarmController.h"
+        Text = "kLegacyForwardingFeatureEnabled = true"
+        Description = "LEGACY_FORWARDING 默认启用"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.h"
+        Text = "kAutoStartMissionFeatureEnabled = true"
+        Description = "AUTO_START_MISSION 默认启用"
+    },
+    @{
         Path = "custom/res/Merivus/GuidedActionsController.qml"
         Text = "_swarm.sendStartCommand(actionData ? actionData : [])"
         Description = "编队按钮调用冻结目标的 SITL 启动入口"
@@ -12,6 +22,16 @@ $requiredChecks = @(
         Path = "custom/src/Swarm/SwarmController.cc"
         Text = "selectedVehicleIds.count() != 6"
         Description = "编队严格校验六架目标"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.cc"
+        Text = "QVariantMap SwarmController::executeLand"
+        Description = "框选目标具备批量降落入口"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.cc"
+        Text = "QVariantMap SwarmController::executeRTL"
+        Description = "框选目标具备批量标准返航入口"
     },
     @{
         Path = "custom/src/Swarm/SwarmController.cc"
@@ -25,13 +45,18 @@ $requiredChecks = @(
     },
     @{
         Path = "custom/res/Merivus/FlyViewMap.qml"
+        Text = "guidedController.actionQueuedMission"
+        Description = "Shift 队列使用统一滑动确认入口"
+    },
+    @{
+        Path = "custom/res/Merivus/FlyViewMap.qml"
         Text = "selectedSwarmIds = [vehicleId]"
         Description = "普通选机使用排他单选"
     },
     @{
         Path = "src/PlanView/PlanView.qml"
-        Text = "visible:            _planMasterController.managerVehicle.isOfflineEditingVehicle"
-        Description = "连接车辆切换时禁止保留上一架方案"
+        Text = "放弃未保存修改并加载当前无人机方案"
+        Description = "连接车辆切换使用统一中文脏草稿确认"
     }
 )
 
@@ -54,4 +79,24 @@ if ($guidedController.Contains("executeStartMissions")) {
 }
 
 Write-Host "[通过] 编队入口未引用 executeStartMissions"
-Write-Host "SITL 编队与任务隔离静态回归通过。"
+
+if ($guidedController.Contains("confirmAction(actionContinueMission)")) {
+    throw "静态回归失败：切换车辆仍可能自动弹出继续任务确认"
+}
+Write-Host "[通过] 继续任务只保留手动入口"
+
+$swarmControllerPath = Join-Path $repoRoot "custom/src/Swarm/SwarmController.cc"
+$swarmController = Get-Content -Raw -LiteralPath $swarmControllerPath
+if ($swarmController.Contains("MERIVUS_DEV_ENABLE_SWARM")) {
+    throw "静态回归失败：编队或临时任务仍依赖旧环境变量"
+}
+Write-Host "[通过] 编队与临时任务默认启用且不依赖旧环境变量"
+
+$flyViewMapPath = Join-Path $repoRoot "custom/res/Merivus/FlyViewMap.qml"
+$flyViewMap = Get-Content -Raw -LiteralPath $flyViewMapPath
+if ($flyViewMap.Contains("temporaryMissionConfirmDialog") -or $flyViewMap.Contains("MessageDialog {")) {
+    throw "静态回归失败：Shift 队列仍使用平台原生确认框"
+}
+Write-Host "[通过] Shift 队列不再使用平台原生确认框"
+
+Write-Host "六机编队、多机动作与任务隔离静态回归通过。"

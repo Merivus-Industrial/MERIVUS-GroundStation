@@ -38,8 +38,8 @@
 - 保留 UI 和聊天功能。
 - 不删除已有代码，可通过明确的 feature flag 隔离。
 - feature flag 默认关闭真实 AI 飞行动作。
-- `SwarmController` 的 legacy MAVLink forwarding 增加开发开关，默认关闭。
-- 临时任务上传后自动 `startMission` 增加开发开关，默认关闭。
+- `SwarmController` 的 legacy MAVLink forwarding 增加可见的功能边界。
+- 临时任务上传后自动 `startMission` 增加可见的功能边界。
 - 原生 QGC 手动操作和 Link 功能不受影响。
 - 不进行大范围重构。
 
@@ -47,13 +47,18 @@
 
 - AI 输入飞行动作时只产生“未执行的建议”。
 - 不调用 `guidedModeTakeoff`、`guidedModeLand`、`guidedModeRTL`、`pauseVehicle`。
-- 未显式启用开发开关时，不发送 legacy forwarding 消息。
-- 未显式启用开发开关时，不自动 `startMission`。
+- 编队入口只允许人工框选完整 UAV-1～UAV-6 并确认后发送 legacy forwarding 消息。
+- Shift 临时任务只允许人工冻结目标与航点并确认后自动 `startMission`。
 - Release 构建通过。
 - 只允许 Mock 或 SITL 验证。
 - 不进行真实飞机测试。
 
 依赖：阶段 0。建议在阶段 1 前完成。
+
+> 2026-07-29 产品决策：上述两条非 AI 人工入口现默认启用，不再读取
+> `MERIVUS_DEV_ENABLE_SWARM_LEGACY_FORWARDING` 或
+> `MERIVUS_DEV_ENABLE_SWARM_AUTO_START_MISSION`。AI 飞行动作仍保持默认关闭；
+> 编队的完整六机校验、Shift 目标冻结和人工确认仍是强制边界。
 
 ## 阶段 1：保护当前可用链路
 

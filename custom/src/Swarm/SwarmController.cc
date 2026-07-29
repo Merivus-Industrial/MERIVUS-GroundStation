@@ -126,6 +126,108 @@ QVariantMap SwarmController::executeTakeoff(const QVariantList& selectedVehicleI
                    skippedIds);
 }
 
+QVariantMap SwarmController::executeLand(const QVariantList& selectedVehicleIds)
+{
+    if (selectedVehicleIds.isEmpty()) {
+        return _result(false, tr("Select at least one vehicle before batch landing."));
+    }
+
+    QSet<int> requestedIds;
+    for (const QVariant& value : selectedVehicleIds) {
+        const int id = value.toInt();
+        if (id <= 0 || requestedIds.contains(id)) {
+            return _result(false, tr("Vehicle selection contains an invalid or duplicate ID."));
+        }
+        requestedIds.insert(id);
+    }
+
+    const QList<Vehicle*> vehicles = _selectedVehicles(selectedVehicleIds);
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    QSet<int> matchedIds;
+    int delayMs = 0;
+
+    for (Vehicle* vehicle : vehicles) {
+        if (!vehicle) {
+            continue;
+        }
+
+        matchedIds.insert(vehicle->id());
+        if (!_vehicleLandReady(vehicle)) {
+            skippedIds << vehicle->id();
+            continue;
+        }
+
+        _dispatchLand(vehicle, delayMs);
+        dispatchedIds << vehicle->id();
+        delayMs += 200;
+    }
+
+    for (int id : requestedIds) {
+        if (!matchedIds.contains(id)) {
+            skippedIds << id;
+        }
+    }
+
+    const bool ok = !dispatchedIds.isEmpty();
+    return _result(ok,
+                   ok ? tr("Batch landing commands scheduled for the selected vehicles.")
+                      : tr("No selected vehicle met the landing requirements."),
+                   dispatchedIds,
+                   skippedIds);
+}
+
+QVariantMap SwarmController::executeRTL(const QVariantList& selectedVehicleIds)
+{
+    if (selectedVehicleIds.isEmpty()) {
+        return _result(false, tr("Select at least one vehicle before batch return."));
+    }
+
+    QSet<int> requestedIds;
+    for (const QVariant& value : selectedVehicleIds) {
+        const int id = value.toInt();
+        if (id <= 0 || requestedIds.contains(id)) {
+            return _result(false, tr("Vehicle selection contains an invalid or duplicate ID."));
+        }
+        requestedIds.insert(id);
+    }
+
+    const QList<Vehicle*> vehicles = _selectedVehicles(selectedVehicleIds);
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    QSet<int> matchedIds;
+    int delayMs = 0;
+
+    for (Vehicle* vehicle : vehicles) {
+        if (!vehicle) {
+            continue;
+        }
+
+        matchedIds.insert(vehicle->id());
+        if (!_vehicleRTLReady(vehicle)) {
+            skippedIds << vehicle->id();
+            continue;
+        }
+
+        _dispatchRTL(vehicle, delayMs);
+        dispatchedIds << vehicle->id();
+        delayMs += 200;
+    }
+
+    for (int id : requestedIds) {
+        if (!matchedIds.contains(id)) {
+            skippedIds << id;
+        }
+    }
+
+    const bool ok = !dispatchedIds.isEmpty();
+    return _result(ok,
+                   ok ? tr("Batch return commands scheduled for the selected vehicles.")
+                      : tr("No selected vehicle met the return requirements."),
+                   dispatchedIds,
+                   skippedIds);
+}
+
 bool SwarmController::hasActiveTemporaryMission(const QVariantList& selectedVehicleIds) const
 {
     for (const QVariant& value : selectedVehicleIds) {
@@ -139,33 +241,29 @@ bool SwarmController::hasActiveTemporaryMission(const QVariantList& selectedVehi
 
 bool SwarmController::sitlSwarmModeEnabled() const
 {
-    return _legacyForwardingFeatureEnabled();
+    return kLegacyForwardingFeatureEnabled;
 }
 
 bool SwarmController::temporaryMissionExecutionEnabled() const
 {
-    return _autoStartMissionFeatureEnabled();
+    return kAutoStartMissionFeatureEnabled;
 }
 
 QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicleIds)
 {
-    if (!_legacyForwardingFeatureEnabled()) {
-        return _result(false, tr("SITL formation mode is disabled. Set MERIVUS_DEV_ENABLE_SWARM_LEGACY_FORWARDING=1 before starting QGC."));
-    }
-
     if (_formationActive) {
         return _result(false, tr("A formation session is already active. End it before starting another one."));
     }
 
     if (selectedVehicleIds.count() != 6) {
-        return _result(false, tr("The SITL formation requires exactly UAV-1 through UAV-6."));
+        return _result(false, tr("The formation requires exactly UAV-1 through UAV-6."));
     }
 
     QSet<int> requestedIds;
     for (const QVariant& value : selectedVehicleIds) {
         const int id = value.toInt();
         if (id < 1 || id > 6 || requestedIds.contains(id)) {
-            return _result(false, tr("The SITL formation target must contain each ID from 1 through 6 exactly once."));
+            return _result(false, tr("The formation target must contain each ID from 1 through 6 exactly once."));
         }
         requestedIds.insert(id);
     }
@@ -190,7 +288,7 @@ QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicl
     }
     if (!skippedIds.isEmpty()) {
         std::sort(skippedIds.begin(), skippedIds.end());
-        return _result(false, tr("All six SITL vehicles must be connected, on the ground, and ready before formation start."), QList<int>(), skippedIds);
+        return _result(false, tr("All six formation vehicles must be connected, on the ground, and ready before formation start."), QList<int>(), skippedIds);
     }
 
     _legacyForwardingEnabled = true;
@@ -210,7 +308,7 @@ QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicl
     _setFormationActive(true);
     _formationWatchdogTimer.start();
 
-    return _result(true, tr("SITL formation start signal sent to UAV-1."), _formationVehicleIds);
+    return _result(true, tr("Formation start signal sent to UAV-1."), _formationVehicleIds);
 }
 
 QVariantMap SwarmController::endFormationSession()
@@ -252,10 +350,6 @@ QVariantMap SwarmController::_executeGotoInternal(const QVariantList& selectedVe
     if (coordinates.isEmpty()) {
         return _result(false, tr("No target coordinate."));
     }
-    if (queued && !_autoStartMissionFeatureEnabled()) {
-        return _result(false, tr("SITL temporary mission execution is disabled. Set MERIVUS_DEV_ENABLE_SWARM_AUTO_START_MISSION=1 before starting QGC."));
-    }
-
     const QGeoCoordinate finalTarget = coordinates.last();
     QList<Vehicle*> vehicles = _selectedVehicles(selectedVehicleIds);
     if (vehicles.isEmpty()) {
@@ -480,6 +574,32 @@ bool SwarmController::_vehicleTakeoffReady(Vehicle* vehicle, double altitudeMete
     return !report || !report->supported() || report->canTakeoff();
 }
 
+bool SwarmController::_vehicleLandReady(Vehicle* vehicle) const
+{
+    return vehicle
+        && vehicle->isInitialConnectComplete()
+        && vehicle->vehicleLinkManager()
+        && !vehicle->vehicleLinkManager()->communicationLost()
+        && vehicle->guidedModeSupported()
+        && vehicle->armed()
+        && vehicle->flying()
+        && !vehicle->fixedWing()
+        && vehicle->flightMode() != vehicle->landFlightMode();
+}
+
+bool SwarmController::_vehicleRTLReady(Vehicle* vehicle) const
+{
+    return vehicle
+        && vehicle->isInitialConnectComplete()
+        && vehicle->vehicleLinkManager()
+        && !vehicle->vehicleLinkManager()->communicationLost()
+        && vehicle->guidedModeSupported()
+        && vehicle->armed()
+        && vehicle->flying()
+        && vehicle->flightMode() != vehicle->rtlFlightMode()
+        && vehicle->flightMode() != vehicle->smartRTLFlightMode();
+}
+
 bool SwarmController::_vehicleFormationReady(Vehicle* vehicle) const
 {
     if (!vehicle
@@ -522,6 +642,26 @@ void SwarmController::_dispatchTakeoff(Vehicle* vehicle, double altitudeMeters, 
     QTimer::singleShot(delayMs, this, [this, guardedVehicle, altitudeMeters]() {
         if (guardedVehicle && _vehicleTakeoffReady(guardedVehicle, altitudeMeters)) {
             guardedVehicle->guidedModeTakeoff(altitudeMeters);
+        }
+    });
+}
+
+void SwarmController::_dispatchLand(Vehicle* vehicle, int delayMs)
+{
+    QPointer<Vehicle> guardedVehicle(vehicle);
+    QTimer::singleShot(delayMs, this, [this, guardedVehicle]() {
+        if (guardedVehicle && _vehicleLandReady(guardedVehicle)) {
+            guardedVehicle->guidedModeLand();
+        }
+    });
+}
+
+void SwarmController::_dispatchRTL(Vehicle* vehicle, int delayMs)
+{
+    QPointer<Vehicle> guardedVehicle(vehicle);
+    QTimer::singleShot(delayMs, this, [this, guardedVehicle]() {
+        if (guardedVehicle && _vehicleRTLReady(guardedVehicle)) {
+            guardedVehicle->guidedModeRTL(false);
         }
     });
 }
@@ -614,7 +754,7 @@ void SwarmController::_handleTemporaryMissionSendComplete(Vehicle* vehicle, bool
         return;
     }
 
-    if (error || !_autoStartMissionFeatureEnabled()) {
+    if (error) {
         _staleTemporaryMissionIds.insert(vehicle->id());
         _temporaryMissions.remove(vehicle->id());
         if (_temporaryMissions.isEmpty()) {
@@ -785,22 +925,8 @@ double SwarmController::_relativeAltitudeMeters(Vehicle* vehicle, double fallbac
     return ok && std::isfinite(altitude) ? altitude : fallbackMeters;
 }
 
-bool SwarmController::_legacyForwardingFeatureEnabled() const
-{
-    return qEnvironmentVariableIntValue("MERIVUS_DEV_ENABLE_SWARM_LEGACY_FORWARDING") == 1;
-}
-
-bool SwarmController::_autoStartMissionFeatureEnabled() const
-{
-    return qEnvironmentVariableIntValue("MERIVUS_DEV_ENABLE_SWARM_AUTO_START_MISSION") == 1;
-}
-
 void SwarmController::_ensureLegacyForwardingConnected()
 {
-    if (!_legacyForwardingFeatureEnabled()) {
-        return;
-    }
-
     if (_legacyForwardingConnected) {
         return;
     }
@@ -814,10 +940,6 @@ void SwarmController::_ensureLegacyForwardingConnected()
 
 bool SwarmController::_sendLegacyStartPacket()
 {
-    if (!_legacyForwardingFeatureEnabled()) {
-        return false;
-    }
-
     MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
     if (!manager || !manager->vehicles()) {
         return false;
@@ -917,7 +1039,7 @@ void SwarmController::_checkFormationHealth()
 
 void SwarmController::_receiveMessage(LinkInterface*, mavlink_message_t message)
 {
-    if (!_legacyForwardingFeatureEnabled() || !_legacyForwardingEnabled || message.msgid != MAVLINK_MSG_ID_GPS_RAW_INT || message.sysid != 1) {
+    if (!_legacyForwardingEnabled || message.msgid != MAVLINK_MSG_ID_GPS_RAW_INT || message.sysid != 1) {
         return;
     }
 
