@@ -16,6 +16,7 @@ Item {
     property var vehicles: QGroundControl.multiVehicleManager.vehicles
     property var activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
     property var toolInsets
+    property alias videoDockTarget: videoViewport
 
     signal vehicleSelectionRequested(int vehicleId, bool selected)
     signal vehicleFocusRequested(int vehicleId)
@@ -478,10 +479,10 @@ function escFact(vehicle, prefix, motorIndex) {
 
             QGCLabel {
                 Layout.fillWidth: true
-                text: root.guidedController && root.guidedController.sitlSwarmModeEnabled
+                text: root.guidedController && root.guidedController.swarmModeEnabled
                         ? tr("六机编队：已启用")
                         : tr("六机编队：未启用")
-                color: root.guidedController && root.guidedController.sitlSwarmModeEnabled ? root.nominal : qgcPal.colorOrange
+                color: root.guidedController && root.guidedController.swarmModeEnabled ? root.nominal : qgcPal.colorOrange
                 font.pixelSize: 11
                 font.bold: true
             }
@@ -501,7 +502,7 @@ function escFact(vehicle, prefix, motorIndex) {
                             title: root.guidedController && root.guidedController.formationActive ? tr("结束编队") : tr("\u7f16\u961f"),
                             icon: "/qmlimages/swarm.svg",
                             enabled: root.guidedController && (root.guidedController.formationActive
-                                     || (root.guidedController.sitlSwarmModeEnabled && root.hasExactSitlFormationSelection())),
+                                     || (root.guidedController.swarmModeEnabled && root.hasExactSitlFormationSelection())),
                             type: "guided",
                             action: root.guidedController
                                     ? (root.guidedController.formationActive ? root.guidedController.actionEndSwarm : root.guidedController.actionSwarm)
@@ -1415,53 +1416,114 @@ function escFact(vehicle, prefix, motorIndex) {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    QGCLabel { Layout.fillWidth: true; text: tr("视频监控预留区"); color: qgcPal.text; font.bold: true; font.pixelSize: 15 }
+                    QGCLabel { Layout.fillWidth: true; text: tr("视频监控"); color: qgcPal.text; font.bold: true; font.pixelSize: 15 }
                     QGCLabel { text: "16:9"; color: root.accent; font.bold: true; font.pixelSize: 12 }
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.min(240, Math.max(150, (rightPanel.width - 24) * 9 / 16))
+                    Layout.preferredHeight: rightContent.width * 9 / 16
                     radius: 8
                     color: qgcPal.windowShadeDark
                     border.color: root.accent
                     border.width: 1
-                    Rectangle { anchors.fill: parent; anchors.margins: 6; radius: 6; color: "transparent"; border.color: root.mutedLine }
+
+                    Item {
+                        id: videoViewport
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        clip: true
+                    }
+
+                    Rectangle {
+                        anchors.fill: videoViewport
+                        radius: 6
+                        color: "transparent"
+                        border.color: root.mutedLine
+                        z: 2
+                    }
+
                     Column {
                         anchors.centerIn: parent
                         spacing: 8
+                        visible: !QGroundControl.videoManager.hasVideo
+                        z: 1
                         QGCColoredImage { anchors.horizontalCenter: parent.horizontalCenter; width: 44; height: 44; source: "/qmlimages/camera_video.svg"; color: root.muted }
                         QGCLabel { anchors.horizontalCenter: parent.horizontalCenter; text: tr("16:9 视频画面区域"); color: qgcPal.text; font.bold: true; font.pixelSize: 15 }
                         QGCLabel { anchors.horizontalCenter: parent.horizontalCenter; text: tr("后续接入 4G 链路视频流 / 吊舱画面"); color: qgcPal.colorGrey; font.pixelSize: 11 }
                     }
-                    QGCLabel { anchors.left: parent.left; anchors.leftMargin: 12; anchors.bottom: parent.bottom; anchors.bottomMargin: 8; text: tr("VIDEO · STANDBY"); color: root.muted; font.pixelSize: 10 }
+
+                    QGCLabel {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 8
+                        text: QGroundControl.videoManager.recording ? tr("VIDEO · REC") :
+                              (QGroundControl.videoManager.decoding ? tr("VIDEO · LIVE") : tr("VIDEO · STANDBY"))
+                        color: QGroundControl.videoManager.recording ? qgcPal.colorRed :
+                               (QGroundControl.videoManager.decoding ? root.nominal : root.muted)
+                        font.pixelSize: 10
+                        z: 3
+                    }
                 }
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 6
+
                     QGCButton {
                         id: videoRecordButton
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 30
-                        text: (QGroundControl.videoManager && QGroundControl.videoManager.recording ? tr("停止录制") : tr("● 录制"))
+                        Layout.preferredHeight: 32
+                        text: QGroundControl.videoManager.recording ? tr("停止录像") : tr("录像")
+                        iconSource: "/qmlimages/camera_video.svg"
+                        iconLeft: true
+                        pointSize: ScreenTools.smallFontPointSize
+                        backRadius: 4
+                        primary: QGroundControl.videoManager.recording
+                        enabled: QGroundControl.videoManager.streaming || QGroundControl.videoManager.recording
                         onHoveredChanged: {
-                            if (hovered) root.showFloatingToolTip(videoRecordButton, tr("开始或停止视频流录制"), "right")
+                            if (hovered) root.showFloatingToolTip(videoRecordButton,
+                                                                 QGroundControl.videoManager.recording ? tr("停止并保存当前视频录像") : tr("将当前视频流录制到本地"),
+                                                                 "right")
                             else root.hideFloatingToolTip()
                         }
                         onClicked: {
                             root.hideFloatingToolTip()
-                            if (QGroundControl.videoManager) {
-                                if (QGroundControl.videoManager.recording) QGroundControl.videoManager.stopRecording()
-                                else QGroundControl.videoManager.startRecording()
-                            }
+                            if (QGroundControl.videoManager.recording) QGroundControl.videoManager.stopRecording()
+                            else QGroundControl.videoManager.startRecording()
                         }
                     }
+
+                    QGCButton {
+                        id: videoPhotoButton
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 32
+                        text: tr("拍照")
+                        iconSource: "/qmlimages/camera_photo.svg"
+                        iconLeft: true
+                        pointSize: ScreenTools.smallFontPointSize
+                        backRadius: 4
+                        enabled: QGroundControl.videoManager.decoding
+                        onHoveredChanged: {
+                            if (hovered) root.showFloatingToolTip(videoPhotoButton, tr("保存当前视频画面截图"), "right")
+                            else root.hideFloatingToolTip()
+                        }
+                        onClicked: {
+                            root.hideFloatingToolTip()
+                            QGroundControl.videoManager.grabImage()
+                        }
+                    }
+
                     QGCButton {
                         id: videoSettingsButton
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 30
+                        Layout.preferredHeight: 32
                         text: tr("视频设置")
+                        iconSource: "/res/gear-black.svg"
+                        iconLeft: true
+                        pointSize: ScreenTools.smallFontPointSize
+                        backRadius: 4
                         onHoveredChanged: {
                             if (hovered) root.showFloatingToolTip(videoSettingsButton, tr("打开应用设置中的视频配置"), "right")
                             else root.hideFloatingToolTip()

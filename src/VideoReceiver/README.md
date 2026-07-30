@@ -2,7 +2,7 @@
 
 ## Video Streaming
 
-For supported platforms, QGroundControl implements an UDP RTP and RSTP video streaming receiver in its Main Flight Display. It uses GStreamer and a stripped down version of QtGstreamer. We've standardized on **GStreamer 1.18.1**. It has been reliable and we will be using it until a good reason to change it surfaces. Newer versions of GStreamer may break the build as some dependent libraries may change.
+For supported platforms, QGroundControl implements an UDP RTP and RSTP video streaming receiver in its Main Flight Display. It uses GStreamer and a stripped down version of QtGstreamer. Upstream standardized on **GStreamer 1.18.1**. MERIVUS Windows builds accept the compatible **GStreamer 1.18.x** family and are currently validated with **1.18.6**. Later minor releases are intentionally rejected because dependent libraries and decoder selection may change.
 To build video streaming support, you will need to install the GStreamer development packages for the desired target platform.
 
 If you do have the proper GStreamer development libraries installed where QGC looks for it, the QGC build system will automatically use it and build video streaming support. If you would like to disable video streaming support, you can add **DISABLE_VIDEOSTREAMING** to the **DEFINES** build variable.
@@ -106,7 +106,7 @@ qgroundcontrol
 ```
 ### Windows
 
-Download the gstreamer framework from here: http://gstreamer.freedesktop.org/data/pkg/windows. Supported version is 1.18.1. QGC may work with newer version, but it is untested.
+Download the gstreamer framework from here: http://gstreamer.freedesktop.org/data/pkg/windows. MERIVUS supports the 1.18.x family and currently validates 1.18.6 on Windows. Later minor versions are unsupported.
 
 You need two packages:
 
@@ -118,4 +118,4 @@ You need two packages:
 - [gstreamer-1.0-devel-msvc-x86_64-1.18.1.msi](https://gstreamer.freedesktop.org/data/pkg/windows/1.18.1/msvc/gstreamer-1.0-devel-msvc-x86_64-1.18.1.msi)
 - [gstreamer-1.0-msvc-x86_64-1.18.1.msi](https://gstreamer.freedesktop.org/data/pkg/windows/1.18.1/msvc/gstreamer-1.0-msvc-x86_64-1.18.1.msi)
 
-Make sure you select "Complete" installation instead of "Typical" installation during the install process. The installer places them under c:\gstreamer, which is where the QGC build system will look for it.
+Make sure you select "Complete" installation instead of "Typical" installation during the install process. The installer places them under c:\gstreamer, which is where the QGC build system will look for it. Verify that `gst-inspect-1.0 avdec_h264` succeeds if software decoding is required.

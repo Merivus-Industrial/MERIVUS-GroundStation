@@ -160,7 +160,9 @@ Item {
     }
 
     FlyViewVideo {
-        id: videoControl
+        id:             videoControl
+        parent:         mapControl.videoDockTarget
+        anchors.fill:   parent
     }
 
     QGCPipOverlay {
@@ -170,10 +172,9 @@ Item {
         anchors.margins:        _toolsMargin
         item1IsFullSettingsKey: "MainFlyWindowIsMap"
         item1:                  mapControl
-        item2:                  QGroundControl.videoManager.hasVideo ? videoControl : null
+        item2:                  null
         fullZOrder:             _fullItemZorder
         pipZOrder:              _pipItemZorder
-        show:                   !QGroundControl.videoManager.fullScreen &&
-                                    (videoControl.pipState.state === videoControl.pipState.pipState || mapControl.pipState.state === mapControl.pipState.pipState)
+        show:                   false
     }
 }

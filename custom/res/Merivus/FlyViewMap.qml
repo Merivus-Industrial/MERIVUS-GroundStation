@@ -53,6 +53,7 @@ FlightMap {
     property var    planMasterController
     property bool   pipMode:                false
     property var    toolInsets
+    property alias  videoDockTarget:        commandCenterOverlay.videoDockTarget
 
     // 【原有】用于保存当前框选的多架无人机 ID 集合
     property var    selectedSwarmIds:       []
@@ -1268,6 +1269,7 @@ FlightMap {
         }
     }
     CommandCenterOverlay {
+        id: commandCenterOverlay
         anchors.fill: parent
         z: QGroundControl.zOrderTopMost + 200
         visible: !pipMode

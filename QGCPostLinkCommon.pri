@@ -51,12 +51,30 @@ WindowsBuild {
     }
 
     ReleaseBuild {
-        # Copy Visual Studio DLLs
-        # Note that this is only done for release because the debugging versions of these DLLs cannot be redistributed.
-        QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY \"$$SOURCE_DIR\\libs\\Microsoft\\windows\\msvcp140.dll\"  \"$$DESTDIR\"
-        QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY \"$$SOURCE_DIR\\libs\\Microsoft\\windows\\msvcp140_1.dll\"  \"$$DESTDIR\"
-        QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY \"$$SOURCE_DIR\\libs\\Microsoft\\windows\\vcruntime140.dll\"  \"$$DESTDIR\"
-        QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY \"$$SOURCE_DIR\\libs\\Microsoft\\windows\\vcruntime140_1.dll\"  \"$$DESTDIR\"
+        # Deploy the redistributable runtime belonging to the active compiler.
+        # The old repository copies can be older than the selected VS toolset
+        # and would shadow a newer system-wide redistributable.
+        MSVC_REDIST_ROOT = $$clean_path($$(VCToolsRedistDir))
+        MSVC_CRT_DIRS = $$files($$MSVC_REDIST_ROOT/x64/Microsoft.VC*.CRT)
+        MSVC_CRT_DIR = $$first(MSVC_CRT_DIRS)
+
+        !exists($$MSVC_CRT_DIR/msvcp140.dll) {
+            error("Current MSVC x64 redistributable was not found. Run qmake from a vcvars64 environment.")
+        }
+
+        message("Deploying MSVC runtime from $$MSVC_CRT_DIR")
+        MSVC_RUNTIME_FILES = \
+            msvcp140.dll \
+            msvcp140_1.dll \
+            vcruntime140.dll \
+            vcruntime140_1.dll
+
+        for(MSVC_RUNTIME_FILE, MSVC_RUNTIME_FILES) {
+            !exists($$MSVC_CRT_DIR/$$MSVC_RUNTIME_FILE) {
+                error("Required MSVC runtime file is missing: $$MSVC_CRT_DIR/$$MSVC_RUNTIME_FILE")
+            }
+            QMAKE_POST_LINK += $$escape_expand(\\n) $$QMAKE_COPY \"$$MSVC_CRT_DIR\\$$MSVC_RUNTIME_FILE\" \"$$DESTDIR\"
+        }
     }
 
     DEPLOY_TARGET = $$shell_quote($$shell_path($$DESTDIR\\$${TARGET}.exe))

@@ -36,15 +36,30 @@ LinuxBuild {
         LIBS        += -F$$(HOME)/Library/Developer/GStreamer/iPhone.sdk -framework GStreamer -framework AVFoundation -framework CoreMedia -framework CoreVideo -framework VideoToolbox -liconv -lresolv
     }
 } else:WindowsBuild {
-    #- gstreamer installed by default under c:/gstreamer
-    GST_ROOT = c:/gstreamer/1.0/msvc_x86_64
+    # Prefer the path exported by the official MSVC x64 installer. PATH alone
+    # is not enough because qmake needs the development headers and import libs.
+    GST_ROOT = $$(GSTREAMER_1_0_ROOT_MSVC_X86_64)
 
-    !exists($$GST_ROOT) {
-        # In GitHub actions windows runner installation is on D drive, so try there as well
+    isEmpty(GST_ROOT) {
+        # Kept for compatibility with older GStreamer Windows installers.
+        GST_ROOT = $$(GSTREAMER_1_0_ROOT_X86_64)
+    }
+
+    isEmpty(GST_ROOT) {
+        GST_ROOT = $$(ProgramFiles)/gstreamer/1.0/msvc_x86_64
+    }
+
+    !exists($$GST_ROOT/include/gstreamer-1.0/gst/gst.h) {
+        GST_ROOT = c:/gstreamer/1.0/msvc_x86_64
+    }
+
+    !exists($$GST_ROOT/include/gstreamer-1.0/gst/gst.h) {
+        # GitHub Actions installs dependencies on the D drive.
         GST_ROOT = d:/gstreamer/1.0/msvc_x86_64
     }
 
-    exists($$GST_ROOT) {
+    exists($$GST_ROOT/include/gstreamer-1.0/gst/gst.h):exists($$GST_ROOT/lib/gstreamer-1.0.lib) {
+        message("Using GStreamer from $$GST_ROOT")
         CONFIG      += VideoEnabled
 
         LIBS        += -L$$GST_ROOT/lib -lgstreamer-1.0 -lgstgl-1.0 -lgstvideo-1.0 -lgstbase-1.0
@@ -60,9 +75,26 @@ LinuxBuild {
         DESTDIR_WIN = $$replace(DESTDIR, "/", "\\")
         GST_ROOT_WIN = $$replace(GST_ROOT, "/", "\\")
 
+        !exists($$GST_ROOT/lib/gstreamer-1.0/gstrtsp.dll) {
+            error("GStreamer RTSP plugin is missing. Modify the Runtime installer and select Complete.")
+        }
+        !exists($$GST_ROOT/lib/gstreamer-1.0/gstrtp.dll) {
+            error("GStreamer RTP plugin is missing. Modify the Runtime installer and select Complete.")
+        }
+        !exists($$GST_ROOT/libexec/gstreamer-1.0/gst-plugin-scanner.exe) {
+            error("GStreamer plugin scanner is missing. Install the complete MSVC x64 Runtime package.")
+        }
+        !exists($$GST_ROOT/lib/gstreamer-1.0/gstlibav.dll) {
+            warning("GStreamer libav plugin is missing; Force software decoder will be unavailable.")
+        }
+
+        # Never merge a newly selected GStreamer version with plugins left by
+        # an older build. The application loads plugins only from this folder.
+        QMAKE_POST_LINK += $$escape_expand(\\n) if exist \"$$DESTDIR_WIN\\gstreamer-plugins\" rmdir /S /Q \"$$DESTDIR_WIN\\gstreamer-plugins\" $$escape_expand(\\n)
+        QMAKE_POST_LINK += if exist \"$$DESTDIR_WIN\\libexec\\gstreamer-1.0\" rmdir /S /Q \"$$DESTDIR_WIN\\libexec\\gstreamer-1.0\" $$escape_expand(\\n)
+
         # Copy main GStreamer runtime files
         QMAKE_POST_LINK += $$escape_expand(\\n) xcopy \"$$GST_ROOT_WIN\\bin\*.dll\" \"$$DESTDIR_WIN\" /S/Y $$escape_expand(\\n)
-        QMAKE_POST_LINK += xcopy \"$$GST_ROOT_WIN\\bin\*.\" \"$$DESTDIR_WIN\" /S/Y $$escape_expand(\\n)
 
         # Copy GStreamer plugins
         QMAKE_POST_LINK += $$escape_expand(\\n) xcopy \"$$GST_ROOT_WIN\\lib\\gstreamer-1.0\\*.dll\" \"$$DESTDIR_WIN\\gstreamer-plugins\\\" /Y $$escape_expand(\\n)
@@ -70,6 +102,8 @@ LinuxBuild {
         # Keep plugin discovery out of the application process. Without the
         # scanner, a faulty hardware plugin can crash QGC during gst_init().
         QMAKE_POST_LINK += $$escape_expand(\\n) xcopy \"$$GST_ROOT_WIN\\libexec\\gstreamer-1.0\\gst-plugin-scanner.exe\" \"$$DESTDIR_WIN\\libexec\\gstreamer-1.0\\\" /Y $$escape_expand(\\n)
+    } else {
+        warning("GStreamer MSVC x64 development files were not found under $$GST_ROOT")
     }
 } else:AndroidBuild {
     #- gstreamer assumed to be installed in $$PWD/../../gstreamer-1.0-android-universal-1.18.5/***

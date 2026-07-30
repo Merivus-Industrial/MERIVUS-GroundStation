@@ -1134,7 +1134,10 @@ GstVideoReceiver::_addDecoder(GstElement* src)
 bool
 GstVideoReceiver::_addVideoSink(GstPad* pad)
 {
-    GstCaps* caps = gst_pad_query_caps(pad, nullptr);
+    if (pad == nullptr || _videoSink == nullptr || _pipeline == nullptr || _decoder == nullptr) {
+        qCCritical(VideoReceiverLog) << "Unable to add video sink: incomplete pipeline state";
+        return false;
+    }
 
     gst_object_ref(_videoSink); // gst_bin_add() will steal one reference
 
@@ -1143,10 +1146,6 @@ GstVideoReceiver::_addVideoSink(GstPad* pad)
     if(!gst_element_link(_decoder, _videoSink)) {
         gst_bin_remove(GST_BIN(_pipeline), _videoSink);
         qCCritical(VideoReceiverLog) << "Unable to link video sink";
-        if (caps != nullptr) {
-            gst_caps_unref(caps);
-            caps = nullptr;
-        }
         return false;
     }
 
@@ -1156,28 +1155,41 @@ GstVideoReceiver::_addVideoSink(GstPad* pad)
 
     GST_DEBUG_BIN_TO_DOT_FILE(GST_BIN(_pipeline), GST_DEBUG_GRAPH_SHOW_ALL, "pipeline-with-videosink");
 
+    QSize videoSize;
     if (_decoderValve != nullptr) {
-        // Extracing video size from source is more guaranteed
+        // Extracting video size from the current negotiated caps is more reliable.
         GstPad* valveSrcPad = gst_element_get_static_pad(_decoderValve, "src");
-        GstCaps* valveSrcPadCaps = gst_pad_query_caps(valveSrcPad, nullptr);
-        GstStructure* s = gst_caps_get_structure(valveSrcPadCaps, 0);
+        if (valveSrcPad != nullptr) {
+            GstCaps* valveSrcPadCaps = gst_pad_get_current_caps(valveSrcPad);
+            if (valveSrcPadCaps == nullptr) {
+                valveSrcPadCaps = gst_pad_query_caps(valveSrcPad, nullptr);
+            }
 
-        if (s != nullptr) {
-            gint width, height;
-            gst_structure_get_int(s, "width", &width);
-            gst_structure_get_int(s, "height", &height);
-            _dispatchSignal([this, width, height](){
-                emit videoSizeChanged(QSize(width, height));
-            });
+            if (valveSrcPadCaps != nullptr
+                    && !gst_caps_is_empty(valveSrcPadCaps)
+                    && gst_caps_get_size(valveSrcPadCaps) > 0) {
+                const GstStructure* structure = gst_caps_get_structure(valveSrcPadCaps, 0);
+                gint width = 0;
+                gint height = 0;
+                if (structure != nullptr
+                        && gst_structure_get_int(structure, "width", &width)
+                        && gst_structure_get_int(structure, "height", &height)
+                        && width > 0
+                        && height > 0) {
+                    videoSize = QSize(width, height);
+                }
+            }
+
+            if (valveSrcPadCaps != nullptr) {
+                gst_caps_unref(valveSrcPadCaps);
+            }
+            gst_object_unref(valveSrcPad);
         }
-
-        gst_caps_unref(caps);
-        caps = nullptr;
-    } else {
-        _dispatchSignal([this](){
-            emit videoSizeChanged(QSize(0, 0));
-        });
     }
+
+    _dispatchSignal([this, videoSize](){
+        emit videoSizeChanged(videoSize);
+    });
 
     return true;
 }

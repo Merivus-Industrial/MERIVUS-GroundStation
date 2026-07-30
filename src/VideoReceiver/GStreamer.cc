@@ -15,9 +15,15 @@
  */
 
 #include <QDebug>
+#include <QDir>
+#include <QStandardPaths>
 
 #include "GStreamer.h"
 #include "GstVideoReceiver.h"
+
+#if defined(Q_OS_WIN) && ((GST_VERSION_MAJOR != 1) || (GST_VERSION_MINOR != 18))
+#error "MERIVUS Windows video builds require the GStreamer 1.18.x SDK."
+#endif
 
 QGC_LOGGING_CATEGORY(GStreamerLog, "GStreamerLog")
 QGC_LOGGING_CATEGORY(GStreamerAPILog, "GStreamerAPILog")
@@ -116,17 +122,18 @@ GStreamer::blacklist(VideoSettings::VideoDecoderOptions option)
         return;
     }
 
-    auto changeRank = [registry](const char* featureName, uint16_t rank) {
+    auto changeRank = [registry](const char* featureName, guint rank) {
         GstPluginFeature* feature = gst_registry_lookup_feature(registry, featureName);
         if (feature == nullptr) {
-            qCDebug(GStreamerLog) << "Failed to change ranking of feature. Featuer does not exist:" << featureName;
-            return;
+            qCDebug(GStreamerLog) << "Failed to change ranking of feature. Feature does not exist:" << featureName;
+            return false;
         }
 
         qCDebug(GStreamerLog) << "Changing feature (" << featureName << ") to use rank:" << rank;
         gst_plugin_feature_set_rank(feature, rank);
         gst_registry_add_feature(registry, feature);
         gst_object_unref(feature);
+        return true;
     };
 
     // Set rank for specific features
@@ -136,8 +143,19 @@ GStreamer::blacklist(VideoSettings::VideoDecoderOptions option)
         case VideoSettings::ForceVideoDecoderDefault:
             break;
         case VideoSettings::ForceVideoDecoderSoftware:
-            for(auto name : {"avdec_h264", "avdec_h265"}) {
-                changeRank(name, GST_RANK_PRIMARY + 1);
+            if (changeRank("avdec_h264", GST_RANK_PRIMARY + 1000)) {
+                for (auto name : {"d3d12h264dec", "d3d11h264dec", "nvh264dec", "nvh264sldec", "vaapih264dec"}) {
+                    changeRank(name, GST_RANK_NONE);
+                }
+            } else {
+                qCWarning(GStreamerLog) << "Force software H.264 decoder requested, but avdec_h264 is not installed";
+            }
+            if (changeRank("avdec_h265", GST_RANK_PRIMARY + 1000)) {
+                for (auto name : {"d3d12h265dec", "d3d11h265dec", "nvh265dec", "nvh265sldec", "vaapih265dec"}) {
+                    changeRank(name, GST_RANK_NONE);
+                }
+            } else {
+                qCWarning(GStreamerLog) << "Force software H.265 decoder requested, but avdec_h265 is not installed";
             }
             break;
         case VideoSettings::ForceVideoDecoderVAAPI:
@@ -151,8 +169,11 @@ GStreamer::blacklist(VideoSettings::VideoDecoderOptions option)
             }
             break;
         case VideoSettings::ForceVideoDecoderDirectX3D:
+            for (auto name : {"d3d12h265dec", "d3d12h264dec"}) {
+                changeRank(name, GST_RANK_NONE);
+            }
             for(auto name : {"d3d11vp9dec", "d3d11h265dec", "d3d11h264dec"}) {
-                changeRank(name, GST_RANK_PRIMARY + 1);
+                changeRank(name, GST_RANK_PRIMARY + 1000);
             }
             break;
         case VideoSettings::ForceVideoDecoderVideoToolbox:
@@ -181,10 +202,24 @@ GStreamer::initialize(int argc, char* argv[], int debuglevel)
     #endif
 #elif defined(Q_OS_WIN)
     QString currentDir = QCoreApplication::applicationDirPath();
+    const QString pluginDir = currentDir + QStringLiteral("/gstreamer-plugins");
     qgcputenv("GST_PLUGIN_SCANNER_1_0", currentDir, "/libexec/gstreamer-1.0/gst-plugin-scanner.exe");
     qgcputenv("GST_PLUGIN_SCANNER",     currentDir, "/libexec/gstreamer-1.0/gst-plugin-scanner.exe");
     qgcputenv("GST_PLUGIN_PATH_1_0",    currentDir, "/gstreamer-plugins");
     qgcputenv("GST_PLUGIN_PATH",        currentDir, "/gstreamer-plugins");
+    qputenv("GST_PLUGIN_SYSTEM_PATH_1_0", QFile::encodeName(pluginDir));
+    qputenv("GST_PLUGIN_SYSTEM_PATH",     QFile::encodeName(pluginDir));
+
+    const QString registryDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+        + QStringLiteral("/gstreamer");
+    if (QDir().mkpath(registryDir)) {
+        const QString registryFile = registryDir
+            + QStringLiteral("/registry-%1.%2.bin").arg(GST_VERSION_MAJOR).arg(GST_VERSION_MINOR);
+        qputenv("GST_REGISTRY_1_0", QFile::encodeName(registryFile));
+        qputenv("GST_REGISTRY",     QFile::encodeName(registryFile));
+    } else {
+        qCWarning(GStreamerLog) << "Unable to create GStreamer registry directory:" << registryDir;
+    }
 #endif
 
     //-- If gstreamer debugging is not configured via environment then use internal QT logging
@@ -207,7 +242,23 @@ GStreamer::initialize(int argc, char* argv[], int debuglevel)
         if (error) {
             g_error_free(error);
         }
+        return;
     }
+
+    guint major = 0;
+    guint minor = 0;
+    guint micro = 0;
+    guint nano = 0;
+    gst_version(&major, &minor, &micro, &nano);
+    qCInfo(GStreamerLog) << "Initialized GStreamer runtime"
+                         << QStringLiteral("%1.%2.%3").arg(major).arg(minor).arg(micro);
+#ifdef Q_OS_WIN
+    if (major != 1 || minor != 18) {
+        qCCritical(GStreamerLog) << "Unsupported GStreamer runtime. Expected 1.18.x, got"
+                                 << QStringLiteral("%1.%2.%3").arg(major).arg(minor).arg(micro);
+        return;
+    }
+#endif
 
     // The static plugins we use
 #if defined(__android__) || defined(__ios__)
