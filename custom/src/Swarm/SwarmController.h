@@ -18,7 +18,7 @@ class LinkInterface;
 class SwarmController : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(bool sitlSwarmModeEnabled READ sitlSwarmModeEnabled CONSTANT)
+    Q_PROPERTY(bool swarmModeEnabled READ swarmModeEnabled CONSTANT)
     Q_PROPERTY(bool temporaryMissionExecutionEnabled READ temporaryMissionExecutionEnabled CONSTANT)
     Q_PROPERTY(bool formationActive READ formationActive NOTIFY formationActiveChanged)
 
@@ -37,7 +37,7 @@ public:
     Q_INVOKABLE QVariantMap sendStartCommand(const QVariantList& selectedVehicleIds);
     Q_INVOKABLE QVariantMap endFormationSession();
 
-    bool sitlSwarmModeEnabled() const;
+    bool swarmModeEnabled() const;
     bool temporaryMissionExecutionEnabled() const;
     bool formationActive() const { return _formationActive; }
 
@@ -91,13 +91,16 @@ private:
     void _requestTemporaryMissionClear(Vehicle* vehicle);
     QList<MissionItem*> _buildTemporaryMissionItems(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates) const;
     double _relativeAltitudeMeters(Vehicle* vehicle, double fallbackMeters) const;
-    void _ensureLegacyForwardingConnected();
-    bool _sendLegacyStartPacket();
+    void _ensureFormationForwardingConnected();
+    bool _sendFormationCommand(MAV_CMD command,
+                               const QList<int>& vehicleIds,
+                               QList<int>* dispatchedIds = nullptr,
+                               QList<int>* skippedIds = nullptr);
     void _setFormationActive(bool active);
     void _pauseFormationFollowers();
 
-    bool _legacyForwardingConnected = false;
-    bool _legacyForwardingEnabled = false;
+    bool _formationForwardingConnected = false;
+    bool _formationForwardingEnabled = false;
     bool _formationActive = false;
     QList<int> _formationVehicleIds;
     QSet<int> _reportedLostFollowerIds;
@@ -107,10 +110,14 @@ private:
     QSet<int> _temporaryMissionConnections;
     QSet<int> _staleTemporaryMissionIds;
     QTimer _temporaryMissionTimer;
-    // Product defaults: LEGACY_FORWARDING controls the formation entry;
-    // AUTO_START_MISSION controls Shift temporary mission execution.
-    static constexpr bool kLegacyForwardingFeatureEnabled = true;
+    // Product defaults: formation control and Shift temporary mission execution
+    // are available in both SITL and supported PX4 hardware builds.
+    static constexpr bool kFormationFeatureEnabled = true;
     static constexpr bool kAutoStartMissionFeatureEnabled = true;
+    static constexpr uint8_t kSwarmProtocolVersion = 1;
+    static constexpr uint8_t kSwarmVehicleCount = 6;
+    static constexpr uint8_t kSwarmLeaderSystemId = 1;
+    static constexpr quint64 kFollowTargetMagic = 0x4d45524956555331ULL; // "MERIVUS1"
     static const double kMinimumGuidedAltitudeMeters;
     static const double kDefaultMissionAltitudeMeters;
 };

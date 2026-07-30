@@ -2,7 +2,7 @@
 
 ## Outcome
 
-恢复 QGC 原有的六机编队触发语义：UAV-1 为固定主机，UAV-2～UAV-6 为从机，点击“编队”只触发既有 swarm 链路，不读取或启动任意机载 Mission。编队与 Shift 临时任务默认可用；框选目标还可统一起飞、降落和标准返航。同时保证普通右键指点和 Shift 多航点任务按车辆隔离，不因切换焦点继承其他车辆的任务。
+恢复 QGC 原有的六机编队触发语义：UAV-1 为固定主机，UAV-2～UAV-6 为从机，点击“编队”只触发配套 PX4 `swarm_node`，不读取或启动任意机载 Mission。编队与 Shift 临时任务默认可用；框选目标还可统一起飞、降落和标准返航。同时保证普通右键指点和 Shift 多航点任务按车辆隔离，不因切换焦点继承其他车辆的任务。
 
 ## Operator workflow
 
@@ -17,11 +17,12 @@
 
 ## Layer and owners
 
-- Hardware: 不在本次范围。
+- Hardware: 配套 PX4 仓库的 `px4_fmu-v6c_default` 已包含 `swarm_node`，目标板为 Pixhawk 6C Mini；本文不执行真实飞机测试。
 - LTE/RTK: 不在本次范围。
 - QGC C++: `custom/src/Swarm/SwarmController.*` 负责固定目标校验、批量起飞/降落/返航、主机位置转发、临时任务逐机状态和清理。
 - QML: `GuidedActionsController.qml`、`CommandCenterOverlay.qml`、`FlyViewMap.qml`、`PlanView.qml` 负责确认、选择冻结、任务显示和禁止跨机继承。
-- MAVLink: 沿用既有 `GPS_RAW_INT` 启动/转发兼容协议。当前仓库只包含地面站发送与转发端，机载接收、队形算法和实机保护需结合配套 PX4 SWARM 源码审计。
+- MAVLink: `MAV_CMD_USER_1/2` 分别承载版本化启动/停止命令，参数固定为协议版本 `1`、机数 `6`、主机 ID `1`，由 PX4 返回命令 ACK；主机标准 `GPS_RAW_INT` 遥测只作为位置来源，地面站向从机发送带 `MERIVUS1` 标识的 `FOLLOW_TARGET`。
+- PX4: 配套源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`。`swarm_node` 负责六机身份/位置/落地检查、Offboard 起飞、主机正方形轨迹、从机跟随以及 3 秒目标超时转 AUTO_LOITER。
 - Cloud/AI: 不接入。
 
 ## Safety impact
@@ -40,7 +41,7 @@
 ## States and failures
 
 - Empty/loading/stale/offline: 无选择或坐标无效时拒绝；断链目标不发送；清除失败标记 stale。
-- Timeout/cancel/retry: 主机位置超过 3 秒未更新时停止转发并命令在线从机悬停；Shift 草稿在切换选择时取消。
+- Timeout/cancel/retry: 主机位置超过 3 秒未更新时，地面站停止转发并下发停止命令；即使地面站同时失联，从机也会因机载 `FOLLOW_TARGET` 超时转 AUTO_LOITER。Shift 草稿在切换选择时取消。
 - Partial success: 普通多机指令可列出跳过目标；固定六机编队要求整组通过，不允许部分启动。
 - Recovery: 活动编队通过“结束编队”停止；残留临时 Mission 在下一次替换确认后覆盖。
 
@@ -51,6 +52,7 @@
 - 编队仅在目标严格为 1～6 且六机全部就绪时可启动。
 - 框选多机后，起飞、降落和标准返航冻结目标并逐机调度；单机失败不阻止其他合格目标。
 - UAV-1 位置只转发给本次冻结的 UAV-2～UAV-6，不回发主机或其他连接车辆。
+- 启动/停止不再伪装 `GPS_RAW_INT` 字段，非法协议参数由 PX4 以 `MAV_RESULT_DENIED` 拒绝。
 - 普通点击另一架机后，上一架的实时任务继续执行，但新右键指令只发给新焦点机。
 - Shift 草稿在首点冻结目标和参考位置；目标切换会取消草稿。
 - Shift 队列使用统一顶部滑动确认条，不再使用 Windows 平台原生白色弹窗。
@@ -62,5 +64,5 @@
 
 - 执行 `tools/dev/test-sitl-swarm-task-isolation.ps1` 和 `git diff --check`。
 - 环境具备时进行 QML/C++ 局部构建。
-- 在 PX4 SITL 覆盖固定六机编队、错误 ID、缺机、重复启动、主机断链、从机断链、跨机下达任务、Shift 替换和 Mission 清理失败。
+- 在配套 PX4 SITL 覆盖固定六机编队、错误协议参数、错误 ID、缺机、重复启动、主机断链、地面站断链、从机断链、跨机下达任务、Shift 替换和 Mission 清理失败。
 - 不连接真实飞机。

@@ -239,9 +239,9 @@ bool SwarmController::hasActiveTemporaryMission(const QVariantList& selectedVehi
     return false;
 }
 
-bool SwarmController::sitlSwarmModeEnabled() const
+bool SwarmController::swarmModeEnabled() const
 {
-    return kLegacyForwardingFeatureEnabled;
+    return kFormationFeatureEnabled;
 }
 
 bool SwarmController::temporaryMissionExecutionEnabled() const
@@ -291,24 +291,31 @@ QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicl
         return _result(false, tr("All six formation vehicles must be connected, on the ground, and ready before formation start."), QList<int>(), skippedIds);
     }
 
-    _legacyForwardingEnabled = true;
-    _ensureLegacyForwardingConnected();
-
-    if (!_sendLegacyStartPacket()) {
-        _legacyForwardingEnabled = false;
-        return _result(false, tr("UAV-1 does not have an active primary link."));
-    }
-
     _formationVehicleIds.clear();
-    for (int id = 1; id <= 6; ++id) {
+    for (int id = 1; id <= kSwarmVehicleCount; ++id) {
         _formationVehicleIds << id;
     }
+
+    _formationForwardingEnabled = true;
+    _ensureFormationForwardingConnected();
+
+    QList<int> dispatchedIds;
+    QList<int> commandSkippedIds;
+    if (!_sendFormationCommand(MAV_CMD_USER_1, _formationVehicleIds, &dispatchedIds, &commandSkippedIds)
+        || dispatchedIds.count() != kSwarmVehicleCount) {
+        _formationForwardingEnabled = false;
+        _formationVehicleIds.clear();
+        return _result(false, tr("The versioned formation start command could not be scheduled for all six vehicles."),
+                       dispatchedIds, commandSkippedIds);
+    }
+
     _reportedLostFollowerIds.clear();
     _leaderGpsTimer.restart();
     _setFormationActive(true);
     _formationWatchdogTimer.start();
 
-    return _result(true, tr("Formation start signal sent to UAV-1."), _formationVehicleIds);
+    return _result(true, tr("Versioned formation start commands were scheduled for UAV-1 through UAV-6."),
+                   dispatchedIds);
 }
 
 QVariantMap SwarmController::endFormationSession()
@@ -316,6 +323,10 @@ QVariantMap SwarmController::endFormationSession()
     if (!_formationActive) {
         return _result(false, tr("No formation session is active."));
     }
+
+    QList<int> stopCommandIds;
+    QList<int> stopCommandSkippedIds;
+    _sendFormationCommand(MAV_CMD_USER_2, _formationVehicleIds, &stopCommandIds, &stopCommandSkippedIds);
 
     QList<int> pausedIds;
     MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
@@ -333,12 +344,18 @@ QVariantMap SwarmController::endFormationSession()
         }
     }
 
-    _legacyForwardingEnabled = false;
+    _formationForwardingEnabled = false;
     _formationWatchdogTimer.stop();
     _formationVehicleIds.clear();
     _reportedLostFollowerIds.clear();
     _setFormationActive(false);
-    return _result(true, tr("Formation forwarding stopped; connected members were told to hold position."), pausedIds);
+    const bool allStopCommandsScheduled = stopCommandIds.count() == kSwarmVehicleCount;
+    return _result(allStopCommandsScheduled,
+                   allStopCommandsScheduled
+                       ? tr("Formation stop commands were scheduled; forwarding stopped and connected members were told to hold.")
+                       : tr("Formation forwarding stopped, but one or more onboard stop commands could not be scheduled."),
+                   stopCommandIds,
+                   stopCommandSkippedIds);
 }
 
 QVariantMap SwarmController::_executeGotoInternal(const QVariantList& selectedVehicleIds,
@@ -607,6 +624,7 @@ bool SwarmController::_vehicleFormationReady(Vehicle* vehicle) const
         || !vehicle->vehicleLinkManager()
         || vehicle->vehicleLinkManager()->communicationLost()
         || !vehicle->px4Firmware()
+        || !vehicle->coordinate().isValid()
         || vehicle->flying()) {
         return false;
     }
@@ -925,52 +943,58 @@ double SwarmController::_relativeAltitudeMeters(Vehicle* vehicle, double fallbac
     return ok && std::isfinite(altitude) ? altitude : fallbackMeters;
 }
 
-void SwarmController::_ensureLegacyForwardingConnected()
+void SwarmController::_ensureFormationForwardingConnected()
 {
-    if (_legacyForwardingConnected) {
+    if (_formationForwardingConnected) {
         return;
     }
 
     MAVLinkProtocol* mavlinkProtocol = qgcApp()->toolbox()->mavlinkProtocol();
     if (mavlinkProtocol) {
         connect(mavlinkProtocol, &MAVLinkProtocol::messageReceived, this, &SwarmController::_receiveMessage);
-        _legacyForwardingConnected = true;
+        _formationForwardingConnected = true;
     }
 }
 
-bool SwarmController::_sendLegacyStartPacket()
+bool SwarmController::_sendFormationCommand(MAV_CMD command,
+                                             const QList<int>& vehicleIds,
+                                             QList<int>* dispatchedIds,
+                                             QList<int>* skippedIds)
 {
     MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
     if (!manager || !manager->vehicles()) {
         return false;
     }
 
-    QmlObjectListModel* model = manager->vehicles();
-    const int count = model->objectList()->count();
-    for (int i = 0; i < count; ++i) {
-        Vehicle* vehicle = qobject_cast<Vehicle*>(model->get(i));
-        if (!vehicle || vehicle->id() != 1) {
+    bool allScheduled = true;
+    for (int vehicleId : vehicleIds) {
+        Vehicle* vehicle = manager->getVehicleById(vehicleId);
+        bool linkAvailable = false;
+
+        if (vehicle && vehicle->vehicleLinkManager()
+            && !vehicle->vehicleLinkManager()->communicationLost()) {
+            const WeakLinkInterfacePtr weakLink = vehicle->vehicleLinkManager()->primaryLink();
+            linkAvailable = !weakLink.expired() && static_cast<bool>(weakLink.lock());
+        }
+
+        if (!linkAvailable) {
+            allScheduled = false;
+            if (skippedIds) {
+                skippedIds->append(vehicleId);
+            }
             continue;
         }
 
-        WeakLinkInterfacePtr weakLink = vehicle->vehicleLinkManager()->primaryLink();
-        if (weakLink.expired()) {
-            return false;
+        vehicle->sendMavCommand(vehicle->defaultComponentId(), command, true,
+                                kSwarmProtocolVersion,
+                                kSwarmVehicleCount,
+                                kSwarmLeaderSystemId);
+        if (dispatchedIds) {
+            dispatchedIds->append(vehicleId);
         }
-
-        SharedLinkInterfacePtr sharedLink = weakLink.lock();
-        if (!sharedLink) {
-            return false;
-        }
-
-        mavlink_message_t msg;
-        mavlink_msg_gps_raw_int_pack_chan(55, 55, sharedLink->mavlinkChannel(), &msg,
-                                          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-        vehicle->sendMessageOnLinkThreadSafe(sharedLink.get(), msg);
-        return true;
     }
 
-    return false;
+    return allScheduled;
 }
 
 void SwarmController::_setFormationActive(bool active)
@@ -1015,8 +1039,9 @@ void SwarmController::_checkFormationHealth()
         || leader->vehicleLinkManager()->communicationLost()
         || (_leaderGpsTimer.isValid() && _leaderGpsTimer.elapsed() > 3000);
     if (leaderLost) {
+        _sendFormationCommand(MAV_CMD_USER_2, _formationVehicleIds);
         _pauseFormationFollowers();
-        _legacyForwardingEnabled = false;
+        _formationForwardingEnabled = false;
         _formationWatchdogTimer.stop();
         _setFormationActive(false);
         emit formationFault(tr("UAV-1 telemetry timed out. Connected followers were told to hold position."));
@@ -1037,18 +1062,37 @@ void SwarmController::_checkFormationHealth()
     }
 }
 
-void SwarmController::_receiveMessage(LinkInterface*, mavlink_message_t message)
+void SwarmController::_receiveMessage(LinkInterface* link, mavlink_message_t message)
 {
-    if (!_legacyForwardingEnabled || message.msgid != MAVLINK_MSG_ID_GPS_RAW_INT || message.sysid != 1) {
+    if (!_formationForwardingEnabled || message.msgid != MAVLINK_MSG_ID_GPS_RAW_INT || message.sysid != 1) {
+        return;
+    }
+
+    MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
+    Vehicle* leader = manager ? manager->getVehicleById(kSwarmLeaderSystemId) : nullptr;
+    if (!leader || !leader->vehicleLinkManager()) {
+        return;
+    }
+
+    const WeakLinkInterfacePtr leaderWeakLink = leader->vehicleLinkManager()->primaryLink();
+    const SharedLinkInterfacePtr leaderLink = leaderWeakLink.lock();
+    if (!leaderLink || leaderLink.get() != link) {
         return;
     }
 
     mavlink_gps_raw_int_t gpsRaw;
     mavlink_msg_gps_raw_int_decode(&message, &gpsRaw);
+    if (gpsRaw.fix_type < GPS_FIX_TYPE_3D_FIX || (gpsRaw.lat == 0 && gpsRaw.lon == 0)) {
+        return;
+    }
     _leaderGpsTimer.restart();
 
-    MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
     if (!manager || !manager->vehicles()) {
+        return;
+    }
+
+    MAVLinkProtocol* mavlinkProtocol = qgcApp()->toolbox()->mavlinkProtocol();
+    if (!mavlinkProtocol) {
         return;
     }
 
@@ -1056,7 +1100,9 @@ void SwarmController::_receiveMessage(LinkInterface*, mavlink_message_t message)
     const int count = model->objectList()->count();
     for (int i = 0; i < count; ++i) {
         Vehicle* vehicle = qobject_cast<Vehicle*>(model->get(i));
-        if (!vehicle || vehicle->id() == 1 || !_formationVehicleIds.contains(vehicle->id())) {
+        if (!vehicle || vehicle->id() == 1 || !_formationVehicleIds.contains(vehicle->id())
+            || !vehicle->vehicleLinkManager()
+            || vehicle->vehicleLinkManager()->communicationLost()) {
             continue;
         }
 
@@ -1070,11 +1116,20 @@ void SwarmController::_receiveMessage(LinkInterface*, mavlink_message_t message)
             continue;
         }
 
+        mavlink_follow_target_t followTarget{};
+        followTarget.timestamp = gpsRaw.time_usec;
+        followTarget.custom_state = kFollowTargetMagic;
+        followTarget.est_capabilities = 1;
+        followTarget.lat = gpsRaw.lat;
+        followTarget.lon = gpsRaw.lon;
+        followTarget.alt = static_cast<float>(gpsRaw.alt) / 1000.f;
+
         mavlink_message_t msg;
-        mavlink_msg_gps_raw_int_pack_chan(1, 1, sharedLink->mavlinkChannel(), &msg,
-                                          gpsRaw.time_usec, gpsRaw.fix_type, gpsRaw.lat, gpsRaw.lon, gpsRaw.alt,
-                                          gpsRaw.eph, gpsRaw.epv, gpsRaw.vel, 0, 0, 0, 0, 0, 0,
-                                          gpsRaw.hdg_acc, gpsRaw.yaw);
+        mavlink_msg_follow_target_encode_chan(static_cast<uint8_t>(mavlinkProtocol->getSystemId()),
+                                              static_cast<uint8_t>(mavlinkProtocol->getComponentId()),
+                                              sharedLink->mavlinkChannel(),
+                                              &msg,
+                                              &followTarget);
         vehicle->sendMessageOnLinkThreadSafe(sharedLink.get(), msg);
     }
 }

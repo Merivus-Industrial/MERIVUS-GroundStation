@@ -20,8 +20,8 @@
 
 - [x] Requested/validated/confirmed
 - [x] Queued/sent
-- [x] ACK/rejection（临时 Mission 上传/清理具备 ACK；旧编队启动包无正式 ACK）
-- [x] Executing/completed（临时 Mission 使用末航点、距离和速度判断；旧编队缺少正式完成状态）
+- [x] ACK/rejection（临时 Mission 上传/清理具备 ACK；编队启动/停止命令由 PX4 校验协议参数并返回 ACK）
+- [x] Executing/completed（临时 Mission 使用末航点、距离和速度判断；编队命令 ACK 仅代表飞控已接收，当前仍没有独立的逐机“编队已建立/轨迹已完成”状态消息）
 - [x] Timeout/cancel/retry
 - [x] Partial-result reconciliation
 
@@ -40,11 +40,11 @@
 - Fault injection: 缺少 UAV、重复 ID、主机 3 秒无位置、从机断链、Mission 上传/清理失败。
 - Audit record: 当前为 UI 结果与日志；尚未接统一持久审计。
 - Rollback/abort: “结束编队”停止转发并让在线成员悬停；普通右键即时抢占临时 Mission。
-- Reviewer decision: 操作者确认六机目标后允许默认使用现有兼容协议；编队与临时任务不再依赖环境变量。地面站改动不等于机载编队算法或实机链路已经验证。
+- Reviewer decision: 操作者确认六机目标后允许默认使用版本 `1` 编队协议；编队与临时任务不再依赖环境变量。配套 `px4_fmu-v6c_default` 已纳入 `swarm_node`，但代码审计不等于实机链路已经验证。
 
 ## Remaining risks
 
-- 旧编队复用标准 `GPS_RAW_INT` 作为非标准兼容消息，没有事务 ID、正式 ACK 或完成消息。
-- 主机失联时，QGC 只能命令仍在线的从机悬停；若 QGC 与机群同时失联，最终保护依赖机载 swarm/PX4 实现。
+- 编队使用标准 MAV_CMD ACK，但尚无事务 ID、能力协商或独立完成状态；“已接受”不能等同于已起飞或已建立队形。
+- 主机失联时 QGC 会下发停止；若 QGC 同时失联，从机依靠机载 3 秒 `FOLLOW_TARGET` 超时转 AUTO_LOITER。该保护仍需 SITL 故障注入验证。
 - 临时 Mission 完成判定使用末航点距离和地速阈值，仍需 SITL 实测校准。
-- 当前仓库没有配套 PX4 SWARM 接收端和正方形队形算法源码；实机发布前仍需审计机载实现，并补齐版本化命令、逐机能力协商、ACK 和机载失联保护。
+- 配套 PX4 源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`；已具备版本化命令、ACK 和机载目标超时保护，实机发布前仍需补齐逐机能力/运行状态上报、SITL 故障注入和现场人工验收。

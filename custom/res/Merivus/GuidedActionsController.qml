@@ -37,7 +37,7 @@ Item {
     property var guidedValueSlider
     property var orbitMapCircle
     property var selectedVehicleIds: []
-    readonly property bool sitlSwarmModeEnabled: _swarm.sitlSwarmModeEnabled
+    readonly property bool swarmModeEnabled: _swarm.swarmModeEnabled
     readonly property bool formationActive: _swarm.formationActive
 
     readonly property string emergencyStopTitle:            qsTr("EMERGENCY STOP")
@@ -93,8 +93,8 @@ Item {
     readonly property string vtolTransitionMRMessage:           qsTr("Transition VTOL to multi-rotor flight.")
     readonly property string roiMessage:                        qsTr("Make the specified location a Region Of Interest.")
     readonly property string setHomeMessage:                    qsTr("Set vehicle home as the specified location. This will affect Return to Home position")
-    readonly property string swarmMessage:                     qsTr("触发 UAV-1 主机与 UAV-2～UAV-6 从机执行既有编队逻辑；不会读取或启动任何机载航线任务。")
-    readonly property string endSwarmMessage:                  qsTr("停止主机位置转发，并让仍在线的编队成员原地悬停。")
+    readonly property string swarmMessage:                     qsTr("向 UAV-1～UAV-6 下发带版本与 ACK 的编队启动命令；主机位置通过 FOLLOW_TARGET 转发，不会读取或启动任何机载航线任务。")
+    readonly property string endSwarmMessage:                  qsTr("向 UAV-1～UAV-6 下发编队停止命令、停止主机位置转发，并让仍在线的成员进入悬停。")
 
     readonly property int actionRTL:                        1
     readonly property int actionLand:                       2
@@ -618,7 +618,7 @@ Item {
             confirmDialog.message = swarmMessage
                     + "\n" + qsTr("主机：UAV-1")
                     + "\n" + qsTr("从机：UAV-2、UAV-3、UAV-4、UAV-5、UAV-6")
-                    + "\n" + (sitlSwarmModeEnabled ? qsTr("六机编队：已启用") : qsTr("六机编队：未启用，确认后不会发送"))
+                    + "\n" + (swarmModeEnabled ? qsTr("六机编队：已启用") : qsTr("六机编队：未启用，确认后不会发送"))
             confirmDialog.hideTrigger =true
             break
         case actionEndSwarm:

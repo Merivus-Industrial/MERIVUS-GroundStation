@@ -81,7 +81,7 @@
 - `executeGoto` 可调度多机 goto。
 - `executeQueuedGoto` 可上传临时任务。
 - 上传完成后可调用 `startMission`。
-- `sendStartCommand` / legacy forwarding 存在 MAVLink `GPS_RAW_INT` 打包和发送逻辑。
+- `sendStartCommand` 使用版本化 `MAV_CMD_USER_1/2` 启停编队；主机标准 `GPS_RAW_INT` 遥测经校验后转换为从机 `FOLLOW_TARGET`。
 
 风险：
 
@@ -97,7 +97,7 @@
 - 阶段 4 后 QML 不直接访问网络，统一经 C++ `AiAgentClient`。
 - 阶段 6 建立 `ActionProposal`、schema 校验、本地风险重算和固定 command 枚举。
 - 阶段 7 再做高风险命令确认框架，先使用 Mock Executor。
-- `SwarmController` 中的真实任务上传、启动和 legacy MAVLink 逻辑仍需单独审计；默认启用不代表机载接收端、ACK、失联保护或实机编队已经验证。
+- `SwarmController` 中的真实任务上传和编队命令仍需持续审计；配套 PX4 已加入参数校验、ACK 和 3 秒机载目标超时保护，但默认启用不代表 SITL 故障注入或实机编队已经验证。
 
 ## 用户描述但尚未验证
 
