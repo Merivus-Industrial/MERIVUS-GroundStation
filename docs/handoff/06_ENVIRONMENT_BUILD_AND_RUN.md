@@ -13,7 +13,7 @@
 - Ollama client `0.32.1` 可执行，但当前服务未运行。
 - Qt Creator 可执行文件位于脚本默认工具目录；VS Code `1.129.0` 可执行。Codex 作为协作工具使用，不属于 QGC 构建依赖。
 
-仓库通常位于 `E:\MERIVUS`，但脚本和文档链接应以仓库相对路径为主。构建脚本的 Qt/VS 默认绝对路径可通过参数覆盖。
+地面站仓库通常位于 `E:\MERIVUS\GroundStation`，配套 PX4 固件仓库位于同一工作区的 `E:\MERIVUS\FirmwarePX4`；脚本和文档链接仍应优先使用仓库相对路径。构建脚本的 Qt/VS 默认绝对路径可通过参数覆盖。
 
 ## 关键命令矩阵
 
@@ -46,7 +46,7 @@
 ## 开发运行与联调边界
 
 1. 开发模式可在 `agent/` 执行 `./run-agent.ps1`，默认启动 Mock Agent；本次未启动。
-2. QGC 启动时，`AiServiceSupervisor` 先检查 `127.0.0.1:8765`，复用兼容外部 Agent，或查找 staging 中的 onedir Agent、仓库打包 Agent、显式开发 Python，最后才尝试当前仓库 Python。
+2. QGC 启动时，`AiServiceSupervisor` 先检查 `127.0.0.1:8765`，复用兼容外部 Agent，或依次查找 staging 中的 onedir Agent、仓库打包 Agent、显式开发 Python、仓库 `agent/.venv`，最后才尝试 `PATH` 中的 Python；零字节 Windows Store 执行别名会被忽略。
 3. QGC 自托管 Agent 时注入 loopback host、固定端口、内存 Token 和 Provider 设置；`AiAgentClient` 只允许 `http://127.0.0.1:<port>`。
 4. 联调只验证 health/info/chat、proposal 显示和进程退出；当前不得把 proposal 接到 `Vehicle`/MAVLink，也不得自动连接真实飞机。
 

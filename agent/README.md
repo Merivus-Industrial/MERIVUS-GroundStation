@@ -43,7 +43,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 .\run-agent.ps1
 ```
 
-脚本只检查 Python 和可选 `agent/.venv`，不会修改系统执行策略。
+脚本优先使用 `agent/.venv`；仅在虚拟环境不存在时才使用 `PATH` 中可正常运行的 Python。脚本不会修改系统执行策略。
 
 ## 手动验证
 

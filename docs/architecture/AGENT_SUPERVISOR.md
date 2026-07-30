@@ -36,7 +36,15 @@
 QCoreApplication::applicationDirPath()/agent/merivus-agent.exe
 ```
 
-开发模式仅在显式配置环境变量后启用：
+开发模式按以下顺序解析：
+
+1. 显式配置的开发环境变量；
+2. 仓库内 `agent/.venv` 的 Python；
+3. 当前 `PATH` 中可用的 Python。
+
+Windows Store 的零字节 `WindowsApps\python.exe` 执行别名不会被当作可用解释器，避免未安装 Python 时出现“进程启动后立即崩溃”。
+
+需要覆盖仓库虚拟环境时可显式配置：
 
 ```text
 MERIVUS_AGENT_DEV_PYTHON=<agent/.venv/Scripts/python.exe>
@@ -50,7 +58,7 @@ MERIVUS_AGENT_DEV_ROOT=<repo>/agent
 workingDirectory=<MERIVUS_AGENT_DEV_ROOT>
 ```
 
-如果发布 EXE 不存在且开发变量不完整或无效，状态进入 `NotInstalled`，界面显示“未找到本机Agent程序”，QGC 其他功能继续运行。
+如果发布 EXE、仓库虚拟环境、显式开发解释器和 `PATH` Python 均不可用，状态进入 `NotInstalled`，界面显示“未找到本机Agent程序”，QGC 其他功能继续运行。
 
 ## 启动前检查和端口冲突
 

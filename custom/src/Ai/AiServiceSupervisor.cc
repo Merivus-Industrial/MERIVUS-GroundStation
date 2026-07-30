@@ -55,16 +55,17 @@ QString findAgentRepoRoot()
     return QString();
 }
 
+bool isUsablePythonExecutable(const QString& path)
+{
+    const QFileInfo pythonInfo(path);
+    // Windows App Execution Alias placeholders (for example WindowsApps\python.exe
+    // when Python is not installed) are zero-byte reparse points. QProcess can
+    // start them, but they exit immediately and look like an Agent crash.
+    return pythonInfo.exists() && pythonInfo.isFile() && pythonInfo.size() > 0;
+}
+
 QString findPythonExecutable()
 {
-    const QString envPython = qEnvironmentVariable("MERIVUS_AGENT_DEV_PYTHON").trimmed();
-    if (!envPython.isEmpty()) {
-        const QFileInfo pythonInfo(envPython);
-        if (pythonInfo.exists() && pythonInfo.isFile()) {
-            return pythonInfo.absoluteFilePath();
-        }
-    }
-
     const QStringList candidates = QStringList()
         << QStringLiteral("python.exe")
         << QStringLiteral("python")
@@ -73,7 +74,7 @@ QString findPythonExecutable()
 
     for (const QString& candidate : candidates) {
         const QString executable = QStandardPaths::findExecutable(candidate);
-        if (!executable.isEmpty()) {
+        if (!executable.isEmpty() && isUsablePythonExecutable(executable)) {
             return executable;
         }
     }
@@ -605,10 +606,9 @@ AiServiceSupervisor::LaunchSpec AiServiceSupervisor::_resolveLaunchSpec()
 
     const QString devPython = qEnvironmentVariable("MERIVUS_AGENT_DEV_PYTHON");
     const QString devRoot = qEnvironmentVariable("MERIVUS_AGENT_DEV_ROOT");
-    QFileInfo pythonInfo(devPython);
     QDir rootDir(devRoot);
-    if (!devPython.trimmed().isEmpty() && !devRoot.trimmed().isEmpty() && pythonInfo.exists() && pythonInfo.isFile() && rootDir.exists()) {
-        spec.program = pythonInfo.absoluteFilePath();
+    if (!devPython.trimmed().isEmpty() && !devRoot.trimmed().isEmpty() && isUsablePythonExecutable(devPython) && rootDir.exists()) {
+        spec.program = QFileInfo(devPython).absoluteFilePath();
         spec.arguments = pythonModuleArguments(spec.program);
         spec.workingDirectory = rootDir.absolutePath();
         spec.valid = true;
@@ -618,6 +618,23 @@ AiServiceSupervisor::LaunchSpec AiServiceSupervisor::_resolveLaunchSpec()
     }
 
     if (!repoRoot.isEmpty()) {
+        const QStringList venvCandidates = QStringList()
+            << QDir(repoRoot).filePath(QStringLiteral("agent/.venv/Scripts/python.exe"))
+            << QDir(repoRoot).filePath(QStringLiteral("agent/.venv/bin/python"));
+        for (const QString& venvPython : venvCandidates) {
+            if (!isUsablePythonExecutable(venvPython)) {
+                continue;
+            }
+
+            spec.program = QFileInfo(venvPython).absoluteFilePath();
+            spec.arguments = pythonModuleArguments(spec.program);
+            spec.workingDirectory = QDir(repoRoot).filePath(QStringLiteral("agent"));
+            spec.valid = true;
+            _setProgramPath(spec.program);
+            _setWorkingDirectory(spec.workingDirectory);
+            return spec;
+        }
+
         const QString python = findPythonExecutable();
         if (!python.isEmpty()) {
             spec.program = python;

@@ -34,7 +34,16 @@ $buildDir = Join-Path $agentRoot "build"
 $distDir = Join-Path $agentRoot "dist"
 $agentDistDir = Join-Path $distDir "merivus-agent"
 $agentExe = Join-Path $agentDistDir "merivus-agent.exe"
-$qgcBuildDir = Join-Path $repoRoot "build\Desktop_Qt_5_15_2_MSVC2019_64bit-$Configuration"
+$qgcBuildCandidates = @(
+    (Join-Path $repoRoot "build\Desktop_Qt_5_15_2_MSVC2019_64bit-$Configuration"),
+    (Join-Path $repoRoot "build\Desktop_Qt_5_15_2_MSVC2019_64bit_$Configuration")
+)
+$qgcBuildDir = $qgcBuildCandidates |
+    Where-Object { Test-Path -LiteralPath $_ -PathType Container } |
+    Select-Object -First 1
+if (-not $qgcBuildDir) {
+    throw "QGC build directory not found. Checked: $($qgcBuildCandidates -join ', ')"
+}
 $stagingRoot = Join-Path $qgcBuildDir "staging"
 $stagingAgentDir = Join-Path $stagingRoot "agent"
 
