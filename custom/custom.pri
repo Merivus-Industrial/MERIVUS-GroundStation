@@ -1,6 +1,6 @@
 message("Adding MERIVUS Custom Plugin")
 
-CUSTOM_QGC_VERSION = 0.1.0-dev.1
+CUSTOM_QGC_VERSION = 0.1.0
 
 WindowsBuild {
     VERSION = 0.1.0.1

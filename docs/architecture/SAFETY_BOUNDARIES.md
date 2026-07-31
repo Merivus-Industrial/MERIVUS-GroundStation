@@ -81,7 +81,7 @@
 - `executeGoto` 可调度多机 goto。
 - `executeQueuedGoto` 可上传临时任务。
 - 上传完成后可调用 `startMission`。
-- `sendStartCommand` 使用版本化 `MAV_CMD_USER_1/2` 启停编队；主机标准 `GPS_RAW_INT` 遥测经校验后转换为从机 `FOLLOW_TARGET`。
+- `sendStartCommand` 使用协议 v2 的 `MAV_CMD_USER_1～4` 执行 PREPARE/COMMIT/RELEASE/ABORT；主机 `GPS_RAW_INT` 经校验后转换为绑定来源与会话 ID 的全成员 `FOLLOW_TARGET` 租约。
 
 风险：
 

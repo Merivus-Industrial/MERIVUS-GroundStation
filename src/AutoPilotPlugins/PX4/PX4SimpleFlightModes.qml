@@ -28,6 +28,67 @@ Item {
     readonly property real _flightModeComboWidth:   ScreenTools.defaultFontPixelWidth * 13
     readonly property real _channelComboWidth:      ScreenTools.defaultFontPixelWidth * 13
 
+    function _translatedChannelText(channelText) {
+        if (channelText === "Unassigned") {
+            return qsTr("Unassigned")
+        }
+
+        var match = /^Channel ([0-9]+)$/.exec(channelText)
+        return match ? qsTr("Channel %1").arg(match[1]) : channelText
+    }
+
+    function _translatedChannelList(channelStrings) {
+        var translatedStrings = []
+        for (var i = 0; i < channelStrings.length; i++) {
+            translatedStrings.push(_translatedChannelText(channelStrings[i]))
+        }
+        return translatedStrings
+    }
+
+    function _translatedFlightModeText(flightModeText) {
+        switch (flightModeText) {
+        case "Unassigned":     return qsTr("Unassigned")
+        case "Manual":         return qsTr("Manual")
+        case "Altitude":       return qsTr("Altitude")
+        case "Position":       return qsTr("Position")
+        case "Mission":        return qsTr("Mission")
+        case "Hold":           return qsTr("Hold")
+        case "Return":         return qsTr("Return")
+        case "Acro":           return qsTr("Acro")
+        case "Offboard":       return qsTr("Offboard")
+        case "Stabilized":     return qsTr("Stabilized")
+        case "Position Slow":  return qsTr("Position Slow")
+        case "Takeoff":        return qsTr("Takeoff")
+        case "Land":           return qsTr("Land")
+        case "Follow Me":      return qsTr("Follow Me")
+        case "Precision Land": return qsTr("Precision Land")
+        case "Altitude Cruise": return qsTr("Altitude Cruise")
+        }
+
+        var match = /^External Mode ([0-9]+)$/.exec(flightModeText)
+        return match ? qsTr("External Mode %1").arg(match[1]) : flightModeText
+    }
+
+    function _translatedFlightModeList(flightModeStrings) {
+        var translatedStrings = []
+        for (var i = 0; i < flightModeStrings.length; i++) {
+            translatedStrings.push(_translatedFlightModeText(flightModeStrings[i]))
+        }
+        return translatedStrings
+    }
+
+    function _translatedSwitchLabel(parameterName, fallbackLabel) {
+        switch (parameterName) {
+        case "RC_MAP_ARM_SW":    return qsTr("Arm switch channel")
+        case "RC_MAP_GEAR_SW":   return qsTr("Landing gear switch channel")
+        case "RC_MAP_KILL_SW":   return qsTr("Emergency Kill switch channel")
+        case "RC_MAP_LOITER_SW": return qsTr("Loiter switch channel")
+        case "RC_MAP_OFFB_SW":   return qsTr("Offboard switch channel")
+        case "RC_MAP_RETURN_SW": return qsTr("Return switch channel")
+        }
+        return fallbackLabel
+    }
+
     Component.onCompleted: {
         if (controller.vehicle.vtol) {
             _switchNameList.push("RC_MAP_TRANS_SW")
@@ -102,6 +163,7 @@ Item {
                             FactComboBox {
                                 Layout.fillWidth:   true
                                 fact:               controller.getParameterFact(-1, "RC_MAP_FLTMODE")
+                                model:              root._translatedChannelList(fact ? fact.enumStrings : [])
                                 indexModel:         false
                                 sizeToContents:     true
                             }
@@ -112,6 +174,7 @@ Item {
                                 FactComboBox {
                                     Layout.fillWidth:   true
                                     fact:               controller.getParameterFact(-1, "COM_FLTMODE" + (modelData + 1))
+                                    model:              root._translatedFlightModeList(fact ? fact.enumStrings : [])
                                     indexModel:         false
                                     sizeToContents:     true
                                 }
@@ -163,7 +226,7 @@ Item {
                                                                              (controller.rcChannelValues[swChannel] > thPWM) :
                                                                              (controller.rcChannelValues[swChannel] <= thPWM))
                                     QGCLabel {
-                                        text:               swFact.shortDescription
+                                        text:               root._translatedSwitchLabel(modelData, swFact.shortDescription)
                                         Layout.fillWidth:   true
                                         color:              swActive ? "yellow" : qgcPal.text
                                     }
@@ -171,6 +234,7 @@ Item {
                                     FactComboBox {
                                         Layout.preferredWidth:  _channelComboWidth
                                         fact:                   swFact
+                                        model:                  root._translatedChannelList(fact ? fact.enumStrings : [])
                                         indexModel:             false
                                     }
                                 }

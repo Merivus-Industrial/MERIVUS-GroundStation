@@ -106,10 +106,10 @@ DECLARE_SETTINGGROUP(App, "")
             qDebug() << "AndroidInterface::getSDCardPath();" << rootDirPath;
                 if (rootDirPath.isEmpty() || !QDir(rootDirPath).exists()) {
                     rootDirPath.clear();
-                    qgcApp()->showAppMessage(tr("Save to SD card specified for application data. But no SD card present. Using internal storage."));
+                    qgcApp()->showAppMessage(AppSettings::tr("Save to SD card specified for application data. But no SD card present. Using internal storage."));
                 } else if (!QFileInfo(rootDirPath).isWritable()) {
                     rootDirPath.clear();
-                    qgcApp()->showAppMessage(tr("Save to SD card specified for application data. But SD card is write protected. Using internal storage."));
+                    qgcApp()->showAppMessage(AppSettings::tr("Save to SD card specified for application data. But SD card is write protected. Using internal storage."));
                 }
             }
         #endif

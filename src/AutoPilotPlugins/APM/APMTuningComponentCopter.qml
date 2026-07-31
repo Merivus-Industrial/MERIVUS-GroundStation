@@ -466,8 +466,8 @@ SetupPage {
                     property var roll: QtObject {
                         property string name: qsTr("Roll")
                         property var plot: [
-                            { name: "Response", value: globals.activeVehicle.rollRate.value },
-                            { name: "Setpoint", value: globals.activeVehicle.setpoint.rollRate.value }
+                            { name: qsTr("Response"), value: globals.activeVehicle.rollRate.value },
+                            { name: qsTr("Setpoint"), value: globals.activeVehicle.setpoint.rollRate.value }
                         ]
                         property var params: ListModel {
                             ListElement {
@@ -507,8 +507,8 @@ SetupPage {
                     property var pitch: QtObject {
                         property string name: qsTr("Pitch")
                         property var plot: [
-                            { name: "Response", value: globals.activeVehicle.pitchRate.value },
-                            { name: "Setpoint", value: globals.activeVehicle.setpoint.pitchRate.value }
+                            { name: qsTr("Response"), value: globals.activeVehicle.pitchRate.value },
+                            { name: qsTr("Setpoint"), value: globals.activeVehicle.setpoint.pitchRate.value }
                         ]
                         property var params: ListModel {
                             ListElement {
@@ -548,8 +548,8 @@ SetupPage {
                     property var yaw: QtObject {
                         property string name: qsTr("Yaw")
                         property var plot: [
-                            { name: "Response", value: globals.activeVehicle.yawRate.value },
-                            { name: "Setpoint", value: globals.activeVehicle.setpoint.yawRate.value }
+                            { name: qsTr("Response"), value: globals.activeVehicle.yawRate.value },
+                            { name: qsTr("Setpoint"), value: globals.activeVehicle.setpoint.yawRate.value }
                         ]
                         property var params: ListModel {
                             ListElement {
@@ -578,7 +578,7 @@ SetupPage {
                             }
                         }
                     }
-                    title: "Rate"
+                    title: qsTr("Rate")
                     tuningMode: Vehicle.ModeDisabled
                     unit: "deg/s"
                     axis: [ roll, pitch, yaw ]

@@ -1,6 +1,7 @@
 #include "SwarmController.h"
 
 #include <QPointer>
+#include <QRandomGenerator>
 #include <QSet>
 #include <QTimer>
 #include <QtAlgorithms>
@@ -28,6 +29,9 @@ SwarmController::SwarmController(QObject* parent)
 {
     _formationWatchdogTimer.setInterval(500);
     connect(&_formationWatchdogTimer, &QTimer::timeout, this, &SwarmController::_checkFormationHealth);
+
+    _formationCommandTimer.setSingleShot(true);
+    connect(&_formationCommandTimer, &QTimer::timeout, this, &SwarmController::_handleFormationCommandTimeout);
 
     _temporaryMissionTimer.setInterval(500);
     connect(&_temporaryMissionTimer, &QTimer::timeout, this, &SwarmController::_checkTemporaryMissionProgress);
@@ -244,6 +248,11 @@ bool SwarmController::swarmModeEnabled() const
     return kFormationFeatureEnabled;
 }
 
+bool SwarmController::formationBusy() const
+{
+    return _formationPhase != FormationPhase::Idle && _formationPhase != FormationPhase::Active;
+}
+
 bool SwarmController::temporaryMissionExecutionEnabled() const
 {
     return kAutoStartMissionFeatureEnabled;
@@ -251,21 +260,33 @@ bool SwarmController::temporaryMissionExecutionEnabled() const
 
 QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicleIds)
 {
-    if (_formationActive) {
-        return _result(false, tr("A formation session is already active. End it before starting another one."));
+    if (formationBusy() || _formationActive) {
+        return _result(false, tr("A formation transaction is already active. End it before starting another one."));
     }
 
-    if (selectedVehicleIds.count() != 6) {
-        return _result(false, tr("The formation requires exactly UAV-1 through UAV-6."));
+    if (selectedVehicleIds.count() != 1
+        && selectedVehicleIds.count() != 2
+        && selectedVehicleIds.count() != kSwarmVehicleCount) {
+        return _result(false, tr("Formation validation supports one, two, or six selected vehicles."));
     }
 
     QSet<int> requestedIds;
     for (const QVariant& value : selectedVehicleIds) {
         const int id = value.toInt();
-        if (id < 1 || id > 6 || requestedIds.contains(id)) {
-            return _result(false, tr("The formation target must contain each ID from 1 through 6 exactly once."));
+        if (id < 1 || id > kSwarmVehicleCount || requestedIds.contains(id)) {
+            return _result(false, tr("Formation members must use unique system IDs from 1 through 6."));
         }
         requestedIds.insert(id);
+    }
+    if (!requestedIds.contains(kSwarmLeaderSystemId)) {
+        return _result(false, tr("Every formation validation session must include leader UAV-1."));
+    }
+    if (selectedVehicleIds.count() == kSwarmVehicleCount) {
+        for (int id = 1; id <= kSwarmVehicleCount; ++id) {
+            if (!requestedIds.contains(id)) {
+                return _result(false, tr("A six-vehicle session must contain UAV-1 through UAV-6 exactly once."));
+            }
+        }
     }
 
     QList<int> skippedIds;
@@ -288,74 +309,53 @@ QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicl
     }
     if (!skippedIds.isEmpty()) {
         std::sort(skippedIds.begin(), skippedIds.end());
-        return _result(false, tr("All six formation vehicles must be connected, on the ground, and ready before formation start."), QList<int>(), skippedIds);
+        return _result(false, tr("All selected formation members must be connected, disarmed, on the ground, and ready."),
+                       QList<int>(), skippedIds);
     }
 
     _formationVehicleIds.clear();
-    for (int id = 1; id <= kSwarmVehicleCount; ++id) {
-        _formationVehicleIds << id;
+    for (int id : requestedIds) {
+        _formationVehicleIds.append(id);
     }
+    std::sort(_formationVehicleIds.begin(), _formationVehicleIds.end());
+    _formationMemberMask = _memberMask(_formationVehicleIds);
+    _formationSessionId = QRandomGenerator::global()->bounded(1U, kMaximumSessionId + 1U);
 
     _formationForwardingEnabled = true;
     _ensureFormationForwardingConnected();
+    _pendingFormationCommandIds.clear();
+    for (int id : _formationVehicleIds) {
+        _pendingFormationCommandIds.insert(id);
+    }
+    _successfulFormationCommandIds.clear();
+    _setFormationPhase(FormationPhase::Preparing);
+    _setFormationStatus(tr("Preparing %1 formation member(s)…").arg(_formationVehicleIds.count()));
 
     QList<int> dispatchedIds;
     QList<int> commandSkippedIds;
-    if (!_sendFormationCommand(MAV_CMD_USER_1, _formationVehicleIds, &dispatchedIds, &commandSkippedIds)
-        || dispatchedIds.count() != kSwarmVehicleCount) {
-        _formationForwardingEnabled = false;
-        _formationVehicleIds.clear();
-        return _result(false, tr("The versioned formation start command could not be scheduled for all six vehicles."),
+    if (!_sendFormationCommand(MAV_CMD_USER_1, _formationVehicleIds, &dispatchedIds, &commandSkippedIds)) {
+        _beginFormationAbort(tr("One or more PREPARE commands could not be scheduled."));
+        return _result(false, tr("Formation preparation failed to schedule; rollback started."),
                        dispatchedIds, commandSkippedIds);
     }
 
     _reportedLostFollowerIds.clear();
     _leaderGpsTimer.restart();
-    _setFormationActive(true);
-    _formationWatchdogTimer.start();
+    _formationCommandTimer.start(10000);
 
-    return _result(true, tr("Versioned formation start commands were scheduled for UAV-1 through UAV-6."),
+    return _result(true, tr("Formation PREPARE started for the selected members."),
                    dispatchedIds);
 }
 
 QVariantMap SwarmController::endFormationSession()
 {
-    if (!_formationActive) {
+    if (!formationBusy() && !_formationActive) {
         return _result(false, tr("No formation session is active."));
     }
 
-    QList<int> stopCommandIds;
-    QList<int> stopCommandSkippedIds;
-    _sendFormationCommand(MAV_CMD_USER_2, _formationVehicleIds, &stopCommandIds, &stopCommandSkippedIds);
-
-    QList<int> pausedIds;
-    MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
-    if (manager && manager->vehicles()) {
-        QmlObjectListModel* model = manager->vehicles();
-        const int count = model->objectList()->count();
-        for (int i = 0; i < count; ++i) {
-            Vehicle* vehicle = qobject_cast<Vehicle*>(model->get(i));
-            if (vehicle && _formationVehicleIds.contains(vehicle->id())
-                && vehicle->vehicleLinkManager()
-                && !vehicle->vehicleLinkManager()->communicationLost()) {
-                vehicle->pauseVehicle();
-                pausedIds << vehicle->id();
-            }
-        }
-    }
-
-    _formationForwardingEnabled = false;
-    _formationWatchdogTimer.stop();
-    _formationVehicleIds.clear();
-    _reportedLostFollowerIds.clear();
-    _setFormationActive(false);
-    const bool allStopCommandsScheduled = stopCommandIds.count() == kSwarmVehicleCount;
-    return _result(allStopCommandsScheduled,
-                   allStopCommandsScheduled
-                       ? tr("Formation stop commands were scheduled; forwarding stopped and connected members were told to hold.")
-                       : tr("Formation forwarding stopped, but one or more onboard stop commands could not be scheduled."),
-                   stopCommandIds,
-                   stopCommandSkippedIds);
+    const QList<int> members = _formationVehicleIds;
+    _beginFormationAbort(tr("Formation stop requested by the operator."));
+    return _result(true, tr("Formation ABORT started; members are transitioning to Hold."), members);
 }
 
 QVariantMap SwarmController::_executeGotoInternal(const QVariantList& selectedVehicleIds,
@@ -625,6 +625,7 @@ bool SwarmController::_vehicleFormationReady(Vehicle* vehicle) const
         || vehicle->vehicleLinkManager()->communicationLost()
         || !vehicle->px4Firmware()
         || !vehicle->coordinate().isValid()
+        || vehicle->armed()
         || vehicle->flying()) {
         return false;
     }
@@ -956,6 +957,17 @@ void SwarmController::_ensureFormationForwardingConnected()
     }
 }
 
+void SwarmController::_ensureFormationCommandConnection(Vehicle* vehicle)
+{
+    if (!vehicle) {
+        return;
+    }
+
+    connect(vehicle, &Vehicle::mavCommandResult,
+            this, &SwarmController::_handleFormationCommandResult,
+            Qt::UniqueConnection);
+}
+
 bool SwarmController::_sendFormationCommand(MAV_CMD command,
                                              const QList<int>& vehicleIds,
                                              QList<int>* dispatchedIds,
@@ -985,16 +997,141 @@ bool SwarmController::_sendFormationCommand(MAV_CMD command,
             continue;
         }
 
+        _ensureFormationCommandConnection(vehicle);
         vehicle->sendMavCommand(vehicle->defaultComponentId(), command, true,
                                 kSwarmProtocolVersion,
-                                kSwarmVehicleCount,
-                                kSwarmLeaderSystemId);
+                                _formationMemberMask,
+                                kSwarmLeaderSystemId,
+                                _formationSessionId);
         if (dispatchedIds) {
             dispatchedIds->append(vehicleId);
         }
     }
 
     return allScheduled;
+}
+
+void SwarmController::_beginFormationCommit()
+{
+    _pendingFormationCommandIds.clear();
+    _successfulFormationCommandIds.clear();
+    for (int id : _formationVehicleIds) {
+        _pendingFormationCommandIds.insert(id);
+    }
+    _setFormationPhase(FormationPhase::Committing);
+    _setFormationStatus(tr("Selected members are entering Offboard, arming, and taking off…"));
+
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    if (!_sendFormationCommand(MAV_CMD_USER_2, _formationVehicleIds, &dispatchedIds, &skippedIds)) {
+        _beginFormationAbort(tr("One or more COMMIT commands could not be scheduled."));
+        return;
+    }
+
+    _formationCommandTimer.start(70000);
+}
+
+void SwarmController::_beginFormationRelease()
+{
+    _pendingFormationCommandIds.clear();
+    _successfulFormationCommandIds.clear();
+    for (int id : _formationVehicleIds) {
+        _pendingFormationCommandIds.insert(id);
+    }
+    _setFormationPhase(FormationPhase::Releasing);
+    _setFormationStatus(tr("All members are ready; releasing the formation trajectory…"));
+
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    if (!_sendFormationCommand(MAV_CMD_USER_3, _formationVehicleIds, &dispatchedIds, &skippedIds)) {
+        _beginFormationAbort(tr("One or more RELEASE commands could not be scheduled."));
+        return;
+    }
+
+    _formationCommandTimer.start(10000);
+}
+
+void SwarmController::_beginFormationAbort(const QString& reason)
+{
+    if (_formationVehicleIds.isEmpty()) {
+        _finishFormationIdle(reason);
+        return;
+    }
+
+    _formationCommandTimer.stop();
+    _formationWatchdogTimer.stop();
+    _formationForwardingEnabled = false;
+    _setFormationActive(false);
+    _setFormationPhase(FormationPhase::Aborting);
+    _setFormationStatus(reason + tr(" Rolling back all selected members to Hold…"));
+    emit formationFault(reason);
+
+    _pauseFormationFollowers();
+
+    QList<int> dispatchedIds;
+    QList<int> skippedIds;
+    _sendFormationCommand(MAV_CMD_USER_4, _formationVehicleIds, &dispatchedIds, &skippedIds);
+
+    _pendingFormationCommandIds.clear();
+    _successfulFormationCommandIds.clear();
+    for (int id : dispatchedIds) {
+        _pendingFormationCommandIds.insert(id);
+    }
+
+    if (_pendingFormationCommandIds.isEmpty()) {
+        _finishFormationIdle(tr("Formation rollback finished locally; no onboard ABORT acknowledgement was available."));
+    } else {
+        _formationCommandTimer.start(30000);
+    }
+}
+
+void SwarmController::_finishFormationIdle(const QString& status)
+{
+    _formationCommandTimer.stop();
+    _formationWatchdogTimer.stop();
+    _formationForwardingEnabled = false;
+    _pendingFormationCommandIds.clear();
+    _successfulFormationCommandIds.clear();
+    _reportedLostFollowerIds.clear();
+    _formationVehicleIds.clear();
+    _formationMemberMask = 0;
+    _formationSessionId = 0;
+    _setFormationActive(false);
+    _setFormationPhase(FormationPhase::Idle);
+    _setFormationStatus(status);
+}
+
+void SwarmController::_setFormationPhase(FormationPhase phase)
+{
+    if (_formationPhase == phase) {
+        return;
+    }
+
+    const bool wasBusy = formationBusy();
+    _formationPhase = phase;
+    if (wasBusy != formationBusy()) {
+        emit formationBusyChanged();
+    }
+}
+
+void SwarmController::_setFormationStatus(const QString& status)
+{
+    if (_formationStatus == status) {
+        return;
+    }
+    _formationStatus = status;
+    emit formationStatusChanged();
+}
+
+quint8 SwarmController::_memberMask(const QList<int>& vehicleIds) const
+{
+    quint8 mask = 0;
+    for (int id : vehicleIds) {
+        if (id >= 1 && id <= kSwarmVehicleCount) {
+            mask |= static_cast<quint8>(1U << (id - 1));
+        }
+    }
+    return mask;
 }
 
 void SwarmController::_setFormationActive(bool active)
@@ -1017,12 +1154,95 @@ void SwarmController::_pauseFormationFollowers()
     const int count = model->objectList()->count();
     for (int i = 0; i < count; ++i) {
         Vehicle* vehicle = qobject_cast<Vehicle*>(model->get(i));
-        if (!vehicle || vehicle->id() == 1 || !_formationVehicleIds.contains(vehicle->id())
+        if (!vehicle || !_formationVehicleIds.contains(vehicle->id())
             || !vehicle->vehicleLinkManager() || vehicle->vehicleLinkManager()->communicationLost()) {
             continue;
         }
         vehicle->pauseVehicle();
     }
+}
+
+void SwarmController::_handleFormationCommandResult(int vehicleId,
+                                                     int targetComponent,
+                                                     int command,
+                                                     int ackResult,
+                                                     int failureCode)
+{
+    Q_UNUSED(targetComponent)
+    Q_UNUSED(failureCode)
+
+    int expectedCommand = -1;
+    switch (_formationPhase) {
+    case FormationPhase::Preparing:
+        expectedCommand = MAV_CMD_USER_1;
+        break;
+    case FormationPhase::Committing:
+        expectedCommand = MAV_CMD_USER_2;
+        break;
+    case FormationPhase::Releasing:
+        expectedCommand = MAV_CMD_USER_3;
+        break;
+    case FormationPhase::Aborting:
+        expectedCommand = MAV_CMD_USER_4;
+        break;
+    default:
+        return;
+    }
+
+    if (command != expectedCommand || !_pendingFormationCommandIds.contains(vehicleId)) {
+        return;
+    }
+
+    _pendingFormationCommandIds.remove(vehicleId);
+    if (ackResult == MAV_RESULT_ACCEPTED) {
+        _successfulFormationCommandIds.insert(vehicleId);
+    } else if (_formationPhase != FormationPhase::Aborting) {
+        _beginFormationAbort(tr("UAV-%1 rejected formation phase %2 (MAV_RESULT %3).")
+                                 .arg(vehicleId)
+                                 .arg(command)
+                                 .arg(ackResult));
+        return;
+    }
+
+    if (!_pendingFormationCommandIds.isEmpty()) {
+        _setFormationStatus(tr("Formation phase %1: %2/%3 members acknowledged.")
+                                .arg(command)
+                                .arg(_successfulFormationCommandIds.count())
+                                .arg(_formationVehicleIds.count()));
+        return;
+    }
+
+    _formationCommandTimer.stop();
+    switch (_formationPhase) {
+    case FormationPhase::Preparing:
+        _beginFormationCommit();
+        break;
+    case FormationPhase::Committing:
+        _beginFormationRelease();
+        break;
+    case FormationPhase::Releasing:
+        _setFormationPhase(FormationPhase::Active);
+        _setFormationActive(true);
+        _setFormationStatus(tr("Formation active: all %1 members reached Control.").arg(_formationVehicleIds.count()));
+        _formationWatchdogTimer.start();
+        break;
+    case FormationPhase::Aborting:
+        _finishFormationIdle(tr("Formation stopped; acknowledged members entered Hold."));
+        break;
+    default:
+        break;
+    }
+}
+
+void SwarmController::_handleFormationCommandTimeout()
+{
+    if (_formationPhase == FormationPhase::Aborting) {
+        _finishFormationIdle(tr("Formation rollback timed out; verify every aircraft is in Hold."));
+        emit formationFault(tr("One or more aircraft did not acknowledge ABORT before timeout."));
+        return;
+    }
+
+    _beginFormationAbort(tr("Formation phase timed out before every member acknowledged."));
 }
 
 void SwarmController::_checkFormationHealth()
@@ -1039,23 +1259,22 @@ void SwarmController::_checkFormationHealth()
         || leader->vehicleLinkManager()->communicationLost()
         || (_leaderGpsTimer.isValid() && _leaderGpsTimer.elapsed() > 3000);
     if (leaderLost) {
-        _sendFormationCommand(MAV_CMD_USER_2, _formationVehicleIds);
-        _pauseFormationFollowers();
-        _formationForwardingEnabled = false;
-        _formationWatchdogTimer.stop();
-        _setFormationActive(false);
-        emit formationFault(tr("UAV-1 telemetry timed out. Connected followers were told to hold position."));
+        _beginFormationAbort(tr("UAV-1 telemetry timed out."));
         return;
     }
 
-    for (int id = 2; id <= 6; ++id) {
+    for (int id : _formationVehicleIds) {
+        if (id == kSwarmLeaderSystemId) {
+            continue;
+        }
         Vehicle* follower = manager ? manager->getVehicleById(id) : nullptr;
         const bool lost = !follower
             || !follower->vehicleLinkManager()
             || follower->vehicleLinkManager()->communicationLost();
         if (lost && !_reportedLostFollowerIds.contains(id)) {
             _reportedLostFollowerIds.insert(id);
-            emit formationFault(tr("UAV-%1 is disconnected. The remaining formation continues.").arg(id));
+            _beginFormationAbort(tr("UAV-%1 disconnected during formation.").arg(id));
+            return;
         } else if (!lost) {
             _reportedLostFollowerIds.remove(id);
         }
@@ -1100,7 +1319,7 @@ void SwarmController::_receiveMessage(LinkInterface* link, mavlink_message_t mes
     const int count = model->objectList()->count();
     for (int i = 0; i < count; ++i) {
         Vehicle* vehicle = qobject_cast<Vehicle*>(model->get(i));
-        if (!vehicle || vehicle->id() == 1 || !_formationVehicleIds.contains(vehicle->id())
+        if (!vehicle || !_formationVehicleIds.contains(vehicle->id())
             || !vehicle->vehicleLinkManager()
             || vehicle->vehicleLinkManager()->communicationLost()) {
             continue;
@@ -1118,7 +1337,7 @@ void SwarmController::_receiveMessage(LinkInterface* link, mavlink_message_t mes
 
         mavlink_follow_target_t followTarget{};
         followTarget.timestamp = gpsRaw.time_usec;
-        followTarget.custom_state = kFollowTargetMagic;
+        followTarget.custom_state = kFollowTargetMagicPrefix | _formationSessionId;
         followTarget.est_capabilities = 1;
         followTarget.lat = gpsRaw.lat;
         followTarget.lon = gpsRaw.lon;
