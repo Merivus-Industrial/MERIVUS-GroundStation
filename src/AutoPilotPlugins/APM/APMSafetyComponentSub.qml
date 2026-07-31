@@ -231,7 +231,7 @@ SetupPage {
                             }
 
                             QGCLabel {
-                                text: "Threshold:"
+                                text: qsTr("Threshold:")
                                 width:              failsafeSettings._labelWidth
                                 visible:            ekfEnableCombo.currentIndex != 0
                                 anchors.baseline:   ekfEnableCombo.baseline

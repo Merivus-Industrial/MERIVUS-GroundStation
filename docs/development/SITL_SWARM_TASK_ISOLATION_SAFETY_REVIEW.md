@@ -1,11 +1,11 @@
-# 六机编队、多机动作与实时任务隔离安全评审
+# 分阶段编队、多机动作与实时任务隔离安全评审
 
 ## Command
 
-- Intent/action: 固定六机编队启动；批量起飞/降落/标准返航；普通右键 goto；Shift 临时多航点 Mission。
+- Intent/action: 单机、双机、六机使用同一编队事务；批量起飞/降落/标准返航；普通右键 goto；Shift 临时多航点 Mission。
 - Risk class: 高。
 - Target source: 地图框选或排他单选。
-- Frozen target system IDs: 编队固定为 1～6；Shift 任务在首个航点时冻结。
+- Frozen target system IDs: 编队成员在 PREPARE 前冻结，必须包含 UAV-1；Shift 任务在首个航点时冻结。
 
 ## Preconditions
 
@@ -20,8 +20,8 @@
 
 - [x] Requested/validated/confirmed
 - [x] Queued/sent
-- [x] ACK/rejection（临时 Mission 上传/清理具备 ACK；编队启动/停止命令由 PX4 校验协议参数并返回 ACK）
-- [x] Executing/completed（临时 Mission 使用末航点、距离和速度判断；编队命令 ACK 仅代表飞控已接收，当前仍没有独立的逐机“编队已建立/轨迹已完成”状态消息）
+- [x] ACK/rejection（编队 PREPARE 在本机预检后 ACK；COMMIT 周期返回 IN_PROGRESS，到达 Ready 后最终 ACK；RELEASE/ABORT 逐机聚合）
+- [x] Executing/completed（全部成员 Ready 后才 RELEASE；地面站只有收到所有 RELEASE ACK 才标记 formationActive）
 - [x] Timeout/cancel/retry
 - [x] Partial-result reconciliation
 
@@ -32,19 +32,20 @@
 - [x] Ambiguity rejected
 - [x] Coordinates/units validated
 - [x] Deterministic preview and operator confirmation
-- [ ] Injection, replay, and bypass tests
+- [x] Replay boundary（命令和位置租约绑定非零会话 ID 与 PREPARE source；故障注入测试仍待执行）
 
 ## Verification
 
-- Mock/SITL scenario: 六机启动、批量起飞/降落/标准返航、跨机独立任务、Shift 替换、完成清理。
-- Fault injection: 缺少 UAV、重复 ID、主机 3 秒无位置、从机断链、Mission 上传/清理失败。
+- Mock/SITL scenario: 单机、双机、六机四阶段事务；批量动作、跨机独立任务、Shift 替换和完成清理。
+- Fault injection: 错误成员位图、过期会话、部分 ACK 丢失、PREPARE/COMMIT/RELEASE 拒绝、任一成员断链、地面站退出、Mission 上传/清理失败。
 - Audit record: 当前为 UI 结果与日志；尚未接统一持久审计。
-- Rollback/abort: “结束编队”停止转发并让在线成员悬停；普通右键即时抢占临时 Mission。
-- Reviewer decision: 操作者确认六机目标后允许默认使用版本 `1` 编队协议；编队与临时任务不再依赖环境变量。配套 `px4_fmu-v6c_default` 已纳入 `swarm_node`，但代码审计不等于实机链路已经验证。
+- Rollback/abort: 任一事务阶段失败或“结束编队”都会停止位置租约，向冻结成员发送 USER_4 ABORT，并等待 AUTO_LOITER ACK。
+- Reviewer decision: 采用协议版本 `2`；单机、双机、六机必须依次完成验证，不得以静态检查代替 SITL 和实机放行。
 
 ## Remaining risks
 
-- 编队使用标准 MAV_CMD ACK，但尚无事务 ID、能力协商或独立完成状态；“已接受”不能等同于已起飞或已建立队形。
-- 主机失联时 QGC 会下发停止；若 QGC 同时失联，从机依靠机载 3 秒 `FOLLOW_TARGET` 超时转 AUTO_LOITER。该保护仍需 SITL 故障注入验证。
+- 当前仍使用通用 `MAV_CMD_USER_1～4`，尚无独立 MERIVUS MAVLink dialect 和能力发现；地面站与固件必须成对发布。
+- 地面站失联后所有成员依靠 3 秒会话租约超时转 AUTO_LOITER；该保护仍需 SITL 故障注入验证。
+- 当前未校验 RTK fix type、水平精度阈值和初始编队几何，双机前仍需补齐或采用足够保守的试验间距。
 - 临时 Mission 完成判定使用末航点距离和地速阈值，仍需 SITL 实测校准。
-- 配套 PX4 源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`；已具备版本化命令、ACK 和机载目标超时保护，实机发布前仍需补齐逐机能力/运行状态上报、SITL 故障注入和现场人工验收。
+- 配套 PX4 源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`；地面站已完成 Release 构建，但 PX4 本机工具链不可用，实机前仍必须完成 SITL、`px4_fmu-v6c_default` 构建、刷写追溯和现场人工验收。

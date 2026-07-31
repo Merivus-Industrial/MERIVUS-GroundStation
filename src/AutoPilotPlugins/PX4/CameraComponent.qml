@@ -263,7 +263,7 @@ SetupPage {
                                     spacing:            _margins * 0.5
                                     QGCRadioButton {
                                         checked:        _camTriggerPol && _camTriggerPol.value === 0
-                                        text:           "Low (0V)"
+                                        text:           qsTr("Low (0V)")
                                         onClicked: {
                                             if(_camTriggerPol) {
                                                 _camTriggerPol.value = 0
@@ -272,7 +272,7 @@ SetupPage {
                                     }
                                     QGCRadioButton {
                                         checked:        _camTriggerPol && _camTriggerPol.value > 0
-                                        text:           "High (3.3V)"
+                                        text:           qsTr("High (3.3V)")
                                         onClicked: {
                                             if(_camTriggerPol) {
                                                 _camTriggerPol.value = 1

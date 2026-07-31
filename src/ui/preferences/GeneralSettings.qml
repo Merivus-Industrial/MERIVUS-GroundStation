@@ -59,8 +59,8 @@ Rectangle {
     property bool   _showSaveVideoSettings:     _isGst || _videoAutoStreamConfig
     property bool   _disableAllDataPersistence: QGroundControl.settingsManager.appSettings.disableAllPersistence.rawValue
 
-    property string gpsDisabled: "Disabled"
-    property string gpsUdpPort:  "UDP Port"
+    property string gpsDisabled: qsTr("Disabled")
+    property string gpsUdpPort:  qsTr("UDP Port")
 
     readonly property real _internalWidthRatio: 0.8
 
@@ -237,7 +237,7 @@ Rectangle {
                                         selectExisting: true
                                         selectFolder:   false
                                         onAcceptedForLoad: customActions.jsonFile.rawValue = file
-                                        nameFilters: ["JSON files (*.json)"]
+                                        nameFilters: [qsTr("JSON files (*.json)")]
                                     }
                                 }
                                 // The file loader on Android doesn't work, so we hard code the path to the
@@ -886,7 +886,7 @@ Rectangle {
                                         var index = nmeaPortCombo.find(QGroundControl.settingsManager.autoConnectSettings.autoConnectNmeaPort.valueString);
                                         nmeaPortCombo.currentIndex = index;
                                         if (QGroundControl.linkManager.serialPorts.length === 0) {
-                                            nmeaPortCombo.model.append({text: "Serial <none available>"})
+                                            nmeaPortCombo.model.append({text: qsTr("Serial <none available>")})
                                         }
                                     }
                                 }

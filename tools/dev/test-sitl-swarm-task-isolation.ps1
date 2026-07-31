@@ -6,7 +6,7 @@ $requiredChecks = @(
     @{
         Path = "custom/src/Swarm/SwarmController.h"
         Text = "kFormationFeatureEnabled = true"
-        Description = "六机编队功能默认启用"
+        Description = "编队功能默认启用"
     },
     @{
         Path = "custom/src/Swarm/SwarmController.h"
@@ -16,22 +16,42 @@ $requiredChecks = @(
     @{
         Path = "custom/res/Merivus/GuidedActionsController.qml"
         Text = "_swarm.sendStartCommand(actionData ? actionData : [])"
-        Description = "编队按钮调用冻结六机目标的启动入口"
+        Description = "编队按钮调用冻结目标的启动入口"
     },
     @{
         Path = "custom/src/Swarm/SwarmController.cc"
-        Text = "selectedVehicleIds.count() != 6"
-        Description = "编队严格校验六架目标"
+        Text = "selectedVehicleIds.count() != 1"
+        Description = "编队支持单机、双机和六机分阶段验证"
     },
     @{
         Path = "custom/src/Swarm/SwarmController.cc"
         Text = "_sendFormationCommand(MAV_CMD_USER_1"
-        Description = "编队启动使用带 ACK 的版本化 MAV_CMD"
+        Description = "编队 PREPARE 使用带 ACK 的版本化 MAV_CMD"
     },
     @{
         Path = "custom/src/Swarm/SwarmController.cc"
         Text = "_sendFormationCommand(MAV_CMD_USER_2"
-        Description = "编队结束和失联保护下发停止 MAV_CMD"
+        Description = "编队 COMMIT 使用独立 MAV_CMD"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.cc"
+        Text = "_sendFormationCommand(MAV_CMD_USER_3"
+        Description = "全员 Ready 后使用 RELEASE MAV_CMD"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.cc"
+        Text = "_sendFormationCommand(MAV_CMD_USER_4"
+        Description = "失败和结束使用 ABORT MAV_CMD"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.h"
+        Text = "kSwarmProtocolVersion = 2"
+        Description = "编队协议版本升级为 2"
+    },
+    @{
+        Path = "custom/src/Swarm/SwarmController.cc"
+        Text = "_beginFormationAbort"
+        Description = "编队任一阶段失败具备整组回滚"
     },
     @{
         Path = "custom/src/Swarm/SwarmController.cc"
@@ -50,8 +70,8 @@ $requiredChecks = @(
     },
     @{
         Path = "custom/src/Swarm/SwarmController.cc"
-        Text = "vehicle->id() == 1 || !_formationVehicleIds.contains(vehicle->id())"
-        Description = "主机位置只转发给冻结从机"
+        Text = "kFollowTargetMagicPrefix | _formationSessionId"
+        Description = "位置租约绑定当前会话"
     },
     @{
         Path = "custom/res/Merivus/FlyViewMap.qml"
@@ -119,4 +139,4 @@ if ($flyViewMap.Contains("temporaryMissionConfirmDialog") -or $flyViewMap.Contai
 }
 Write-Host "[通过] Shift 队列不再使用平台原生确认框"
 
-Write-Host "六机编队、多机动作与任务隔离静态回归通过。"
+Write-Host "分阶段编队、多机动作与任务隔离静态回归通过。"

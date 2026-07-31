@@ -31,9 +31,9 @@ Item {
         case 6:
             return "SimpleROV-5"
         case 7:
-            return "Custom"
+            return qsTr("Custom")
         default:
-            return "Unknown"
+            return qsTr("Unknown")
         }
     }
 

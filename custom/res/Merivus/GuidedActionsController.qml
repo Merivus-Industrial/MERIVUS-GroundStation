@@ -39,6 +39,8 @@ Item {
     property var selectedVehicleIds: []
     readonly property bool swarmModeEnabled: _swarm.swarmModeEnabled
     readonly property bool formationActive: _swarm.formationActive
+    readonly property bool formationBusy: _swarm.formationBusy
+    readonly property string formationStatus: _swarm.formationStatus
 
     readonly property string emergencyStopTitle:            qsTr("EMERGENCY STOP")
     readonly property string armTitle:                      qsTr("Arm")
@@ -65,8 +67,8 @@ Item {
     readonly property string roiTitle:                      qsTr("ROI")
     readonly property string setHomeTitle:                  qsTr("Set Home")
     readonly property string actionListTitle:               qsTr("Action")
-    readonly property string swarmTitle:                   qsTr("六机编队任务")
-    readonly property string endSwarmTitle:                qsTr("结束六机编队")
+    readonly property string swarmTitle:                   qsTr("编队验证任务")
+    readonly property string endSwarmTitle:                qsTr("结束编队")
     readonly property string queuedMissionTitle:           qsTr("实时航点队列")
 
     readonly property string armMessage:                        qsTr("Arm the vehicle.")
@@ -93,8 +95,8 @@ Item {
     readonly property string vtolTransitionMRMessage:           qsTr("Transition VTOL to multi-rotor flight.")
     readonly property string roiMessage:                        qsTr("Make the specified location a Region Of Interest.")
     readonly property string setHomeMessage:                    qsTr("Set vehicle home as the specified location. This will affect Return to Home position")
-    readonly property string swarmMessage:                     qsTr("向 UAV-1～UAV-6 下发带版本与 ACK 的编队启动命令；主机位置通过 FOLLOW_TARGET 转发，不会读取或启动任何机载航线任务。")
-    readonly property string endSwarmMessage:                  qsTr("向 UAV-1～UAV-6 下发编队停止命令、停止主机位置转发，并让仍在线的成员进入悬停。")
+    readonly property string swarmMessage:                     qsTr("按 PREPARE、COMMIT、RELEASE 三阶段启动所选 1/2/6 机；任一成员失败会自动向整组下发 ABORT。")
+    readonly property string endSwarmMessage:                  qsTr("向当前会话成员下发 ABORT、停止位置租约，并等待成员进入悬停。")
 
     readonly property int actionRTL:                        1
     readonly property int actionLand:                       2
@@ -609,21 +611,24 @@ Item {
             confirmDialog.hideTrigger = Qt.binding(function() { return !showSetHome })
             break
         case actionSwarm:
-            if (!_actionData || _actionData.length !== 6
-                    || _actionData.slice(0).sort(function(a, b) { return a - b }).join(",") !== "1,2,3,4,5,6") {
-                mainWindow.showMessageDialog(qsTr("无法启动六机编队"), qsTr("请明确框选 UAV-1～UAV-6，且不能包含其他目标。"))
+            var formationIds = _actionData ? _actionData.slice(0).sort(function(a, b) { return a - b }) : []
+            var validCount = formationIds.length === 1 || formationIds.length === 2 || formationIds.length === 6
+            var validLeader = formationIds.length > 0 && Number(formationIds[0]) === 1
+            var validSix = formationIds.length !== 6 || formationIds.join(",") === "1,2,3,4,5,6"
+            if (!validCount || !validLeader || !validSix) {
+                mainWindow.showMessageDialog(qsTr("无法启动编队"), qsTr("请选择包含 UAV-1 的单机、双机或完整 UAV-1～UAV-6。"))
                 return
             }
             confirmDialog.title = swarmTitle
             confirmDialog.message = swarmMessage
                     + "\n" + qsTr("主机：UAV-1")
-                    + "\n" + qsTr("从机：UAV-2、UAV-3、UAV-4、UAV-5、UAV-6")
-                    + "\n" + (swarmModeEnabled ? qsTr("六机编队：已启用") : qsTr("六机编队：未启用，确认后不会发送"))
+                    + "\n" + qsTr("成员：UAV-%1").arg(formationIds.join("、UAV-"))
+                    + "\n" + (swarmModeEnabled ? qsTr("编队协议：已启用") : qsTr("编队协议：未启用，确认后不会发送"))
             confirmDialog.hideTrigger =true
             break
         case actionEndSwarm:
-            if (!formationActive) {
-                mainWindow.showMessageDialog(qsTr("无法结束六机编队"), qsTr("当前没有活动的编队事务。"))
+            if (!formationActive && !formationBusy) {
+                mainWindow.showMessageDialog(qsTr("无法结束编队"), qsTr("当前没有活动的编队事务。"))
                 return
             }
             confirmDialog.title = endSwarmTitle

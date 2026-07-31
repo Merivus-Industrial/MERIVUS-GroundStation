@@ -5,6 +5,7 @@
 #include <QGeoCoordinate>
 #include <QHash>
 #include <QSet>
+#include <QString>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -21,6 +22,8 @@ class SwarmController : public QObject
     Q_PROPERTY(bool swarmModeEnabled READ swarmModeEnabled CONSTANT)
     Q_PROPERTY(bool temporaryMissionExecutionEnabled READ temporaryMissionExecutionEnabled CONSTANT)
     Q_PROPERTY(bool formationActive READ formationActive NOTIFY formationActiveChanged)
+    Q_PROPERTY(bool formationBusy READ formationBusy NOTIFY formationBusyChanged)
+    Q_PROPERTY(QString formationStatus READ formationStatus NOTIFY formationStatusChanged)
 
 public:
     explicit SwarmController(QObject* parent = nullptr);
@@ -40,15 +43,21 @@ public:
     bool swarmModeEnabled() const;
     bool temporaryMissionExecutionEnabled() const;
     bool formationActive() const { return _formationActive; }
+    bool formationBusy() const;
+    QString formationStatus() const { return _formationStatus; }
 
 signals:
     void formationActiveChanged();
+    void formationBusyChanged();
+    void formationStatusChanged();
     void formationFault(const QString& message);
     void temporaryMissionCompleted(int vehicleId, bool clearError);
 
 private slots:
     void _receiveMessage(LinkInterface* link, mavlink_message_t message);
     void _checkFormationHealth();
+    void _handleFormationCommandResult(int vehicleId, int targetComponent, int command, int ackResult, int failureCode);
+    void _handleFormationCommandTimeout();
     void _checkTemporaryMissionProgress();
 
 private:
@@ -56,6 +65,15 @@ private:
         Uploading,
         Executing,
         Clearing,
+    };
+
+    enum class FormationPhase {
+        Idle,
+        Preparing,
+        Committing,
+        Releasing,
+        Active,
+        Aborting,
     };
 
     struct TemporaryMissionState {
@@ -92,20 +110,35 @@ private:
     QList<MissionItem*> _buildTemporaryMissionItems(Vehicle* vehicle, const QList<QGeoCoordinate>& coordinates) const;
     double _relativeAltitudeMeters(Vehicle* vehicle, double fallbackMeters) const;
     void _ensureFormationForwardingConnected();
+    void _ensureFormationCommandConnection(Vehicle* vehicle);
     bool _sendFormationCommand(MAV_CMD command,
                                const QList<int>& vehicleIds,
                                QList<int>* dispatchedIds = nullptr,
                                QList<int>* skippedIds = nullptr);
+    void _beginFormationCommit();
+    void _beginFormationRelease();
+    void _beginFormationAbort(const QString& reason);
+    void _finishFormationIdle(const QString& status);
+    void _setFormationPhase(FormationPhase phase);
+    void _setFormationStatus(const QString& status);
+    quint8 _memberMask(const QList<int>& vehicleIds) const;
     void _setFormationActive(bool active);
     void _pauseFormationFollowers();
 
     bool _formationForwardingConnected = false;
     bool _formationForwardingEnabled = false;
     bool _formationActive = false;
+    FormationPhase _formationPhase = FormationPhase::Idle;
+    QString _formationStatus;
     QList<int> _formationVehicleIds;
+    QSet<int> _pendingFormationCommandIds;
+    QSet<int> _successfulFormationCommandIds;
     QSet<int> _reportedLostFollowerIds;
+    quint8 _formationMemberMask = 0;
+    quint32 _formationSessionId = 0;
     QElapsedTimer _leaderGpsTimer;
     QTimer _formationWatchdogTimer;
+    QTimer _formationCommandTimer;
     QHash<int, TemporaryMissionState> _temporaryMissions;
     QSet<int> _temporaryMissionConnections;
     QSet<int> _staleTemporaryMissionIds;
@@ -114,10 +147,11 @@ private:
     // are available in both SITL and supported PX4 hardware builds.
     static constexpr bool kFormationFeatureEnabled = true;
     static constexpr bool kAutoStartMissionFeatureEnabled = true;
-    static constexpr uint8_t kSwarmProtocolVersion = 1;
+    static constexpr uint8_t kSwarmProtocolVersion = 2;
     static constexpr uint8_t kSwarmVehicleCount = 6;
     static constexpr uint8_t kSwarmLeaderSystemId = 1;
-    static constexpr quint64 kFollowTargetMagic = 0x4d45524956555331ULL; // "MERIVUS1"
+    static constexpr quint32 kMaximumSessionId = 0x00ffffffU;
+    static constexpr quint64 kFollowTargetMagicPrefix = 0x4d45524900000000ULL; // "MERI" + session
     static const double kMinimumGuidedAltitudeMeters;
     static const double kDefaultMissionAltitudeMeters;
 };
