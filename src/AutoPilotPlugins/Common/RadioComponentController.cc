@@ -14,6 +14,7 @@
 
 #include "RadioComponentController.h"
 #include "QGCApplication.h"
+#include "QGCMAVLink.h"
 
 #include <QElapsedTimer>
 #include <QSettings>
@@ -96,6 +97,15 @@ RadioComponentController::RadioComponentController(void)
     }
 
     connect(_vehicle, &Vehicle::rcChannelsChanged, this, &RadioComponentController::_rcChannelsChanged);
+
+    // USB configuration streams normally include RC_CHANNELS, while telemetry
+    // links may not. Ask the active MAVLink link for the stream needed by the
+    // channel monitor and calibration workflow.
+    _vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
+                             MAV_CMD_SET_MESSAGE_INTERVAL,
+                             false /* showError */,
+                             MAVLINK_MSG_ID_RC_CHANNELS,
+                             100000.0f /* 10 Hz, interval in usec */);
     _loadSettings();
 
     _resetInternalCalibrationValues();

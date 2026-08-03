@@ -28,6 +28,16 @@ PX4SimpleFlightModesController::PX4SimpleFlightModesController(void)
     }
 
     connect(_vehicle, &Vehicle::rcChannelsChanged, this, &PX4SimpleFlightModesController::_rcChannelsChanged);
+
+    // RC_CHANNELS is enabled by default on PX4's USB configuration stream, but it
+    // may not be enabled on a telemetry/TCP-backed stream. Request it explicitly
+    // while this page needs live RC input. Older PX4 versions which do not support
+    // this command will simply ignore it (showError is false).
+    _vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
+                             MAV_CMD_SET_MESSAGE_INTERVAL,
+                             false /* showError */,
+                             MAVLINK_MSG_ID_RC_CHANNELS,
+                             100000.0f /* 10 Hz, interval in usec */);
 }
 
 /// Connected to Vehicle::rcChannelsChanged signal
@@ -52,6 +62,12 @@ void PX4SimpleFlightModesController::_rcChannelsChanged(int channelCount, int pw
     int flightModeChannel = pFact->rawValue().toInt() - 1;
     if (flightModeChannel == -1) {
         // Flight mode channel not set, can't track active flight mode
+        _activeFlightMode = 0;
+        emit activeFlightModeChanged(_activeFlightMode);
+        return;
+    }
+
+    if (flightModeChannel < 0 || flightModeChannel >= channelCount || flightModeChannel >= Vehicle::cMaxRcChannels) {
         _activeFlightMode = 0;
         emit activeFlightModeChanged(_activeFlightMode);
         return;
@@ -105,20 +121,16 @@ void PX4SimpleFlightModesController::_rcChannelsChanged(int channelCount, int pw
 
     int pwmTrim = pFact->rawValue().toInt();
 
-    pFact = getParameterFact(-1, QString("RC%1_DZ").arg(flightModeChannel + 1));
-    if(!pFact) {
-#if defined _MSC_VER
-        qCritical() << QString("RC%1_DZ").arg(flightModeChannel + 1) << "Fact is NULL in" << __FILE__ << __LINE__;
-#else
-        qCritical() << QString("RC%1_DZ").arg(flightModeChannel + 1) << " Fact is NULL in" << __func__ << __FILE__ << __LINE__;
-#endif
-        return;
-    }
-
-    int pwmDz = pFact->rawValue().toInt();
-
-    if (flightModeChannel < 0 || flightModeChannel > channelCount) {
-        return;
+    // PX4 1.16+ no longer exposes the per-channel RCx_DZ parameters. The
+    // flight-mode switch does not need a dead zone, so retain support for older
+    // firmware when the parameter exists and otherwise use zero.
+    int pwmDz = 0;
+    const QString deadZoneParam = QString("RC%1_DZ").arg(flightModeChannel + 1);
+    if (parameterExists(FactSystem::defaultComponentId, deadZoneParam)) {
+        pFact = getParameterFact(FactSystem::defaultComponentId, deadZoneParam);
+        if (pFact) {
+            pwmDz = pFact->rawValue().toInt();
+        }
     }
 
     _activeFlightMode = 0;
@@ -145,13 +157,16 @@ void PX4SimpleFlightModesController::_rcChannelsChanged(int channelCount, int pw
 
         float calibrated_value;
 
-        if (channelValue > (pwmTrim + pwmDz)) {
-            calibrated_value = (channelValue - pwmTrim - pwmDz) / (float)(
-                          pwmMax - pwmTrim - pwmDz);
+        const int positiveRange = pwmMax - pwmTrim - pwmDz;
+        const int negativeRange = pwmTrim - pwmMin - pwmDz;
 
-        } else if (channelValue < (pwmTrim - pwmDz)) {
+        if (channelValue > (pwmTrim + pwmDz) && positiveRange > 0) {
+            calibrated_value = (channelValue - pwmTrim - pwmDz) / (float)(
+                          positiveRange);
+
+        } else if (channelValue < (pwmTrim - pwmDz) && negativeRange > 0) {
             calibrated_value = (channelValue - pwmTrim + pwmDz) / (float)(
-                          pwmTrim - pwmMin - pwmDz);
+                          negativeRange);
 
         } else {
             /* in the configured dead zone, output zero */
