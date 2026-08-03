@@ -15944,50 +15944,70 @@ Click the Next button to upload calibration to board. Click Cancel if you don&ap
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="174"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="174"/>
-      <source>GNSS / Navigation Loss Failsafe</source>
-      <translation>GNSS/导航丢失故障保护</translation>
+      <source>GNSS / Navigation Loss Protection</source>
+      <translation>GNSS/导航丢失保护</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="202"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="202"/>
-      <source>Navigation Loss Action:</source>
-      <translation>导航丢失动作：</translation>
+      <source>Loss Response:</source>
+      <translation>失效响应：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="214"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="214"/>
-      <source>Navigation Loss Delay:</source>
-      <translation>导航丢失延时：</translation>
+      <source>Activation Delay:</source>
+      <translation>触发延时：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="223"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="223"/>
-      <source>Backup Positioning:</source>
-      <translation>备用定位：</translation>
+      <source>Trigger:</source>
+      <translation>触发条件：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="227"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="227"/>
-      <source>Handled by PX4 estimator inputs</source>
-      <translation>由 PX4 估算器输入处理</translation>
+      <source>PX4 position estimate stays invalid</source>
+      <translation>PX4 位置估计持续无效</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="234"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="234"/>
-      <source>IoT TCP / MAVLink Link Failsafe</source>
-      <translation>IoT TCP/MAVLink 链路故障保护</translation>
+      <source>TCP / MAVLink Link Protection</source>
+      <translation>TCP/MAVLink 链路保护</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="282"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="282"/>
-      <source>TCP Loss Response:</source>
-      <translation>TCP 丢失响应：</translation>
+      <source>Execution:</source>
+      <translation>执行位置：</translation>
+    </message>
+    <message>
+      <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="251"/>
+      <source>Flight controller (independent of GCS connection)</source>
+      <translation>飞控端（不依赖地面站在线）</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="291"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="291"/>
       <source>MAVLink Loss Action:</source>
       <translation>MAVLink 丢失动作：</translation>
+    </message>
+    <message>
+      <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="320"/>
+      <source>Loss Timeout:</source>
+      <translation>丢失超时：</translation>
+    </message>
+    <message>
+      <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="334"/>
+      <source>Protection Scope:</source>
+      <translation>保护范围：</translation>
+    </message>
+    <message>
+      <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="338"/>
+      <source>PX4 handles MAVLink loss; TCP status is monitoring only</source>
+      <translation>PX4 处理 MAVLink 丢失；TCP 状态仅用于监测</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="301"/>
@@ -16239,14 +16259,24 @@ Click the Next button to upload calibration to board. Click Cancel if you don&ap
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="262"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="262"/>
-      <source>Cloud IoT TCP Status:</source>
-      <translation>云端 IoT TCP 状态：</translation>
+      <source>TCP Status:</source>
+      <translation>TCP 状态：</translation>
     </message>
     <message>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="273"/>
       <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="273"/>
-      <source>TCP Heartbeat Timeout:</source>
-      <translation>TCP 心跳超时：</translation>
+      <source>TCP Links:</source>
+      <translation>TCP 链路：</translation>
+    </message>
+    <message>
+      <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="301"/>
+      <source>%1 connected / %2 configured</source>
+      <translation>%1 已连接 / %2 已配置</translation>
+    </message>
+    <message>
+      <location filename="../src/AutoPilotPlugins/PX4/SafetyComponent.qml" line="302"/>
+      <source>Not configured</source>
+      <translation>未配置</translation>
     </message>
   </context>
   <context>

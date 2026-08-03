@@ -20,6 +20,7 @@ import QGroundControl.FactControls  1.0
 import QGroundControl.Controls      1.0
 import QGroundControl.ScreenTools   1.0
 import QGroundControl.Palette       1.0
+import Merivus                      1.0
 
 SetupPage {
     id:             safetyPage
@@ -62,9 +63,23 @@ SetupPage {
             property Fact _hitlEnabled:         controller.getParameterFact(-1, hitlParam, false)
 
             readonly property string _pendingIntegrationText: qsTr("Pending integration")
-            readonly property string _tcpStatusPendingText:   qsTr("Pending MERIVUS TCP status")
-            readonly property string _tcpTimeoutPendingText:  qsTr("Pending MERIVUS heartbeat timeout")
-            readonly property string _tcpLossResponseText:    qsTr("Return via MERIVUS while MAVLink is alive")
+            readonly property bool   _dataLinkFailsafeEnabled: _dlLossAction && Number(_dlLossAction.rawValue) !== 0
+            readonly property color  _tcpStatusColor: {
+                if (linkDiagnostics.summaryState === "connected") {
+                    return qgcPal.colorGreen
+                }
+                if (linkDiagnostics.summaryState === "error" || linkDiagnostics.summaryState === "disconnected") {
+                    return qgcPal.colorRed
+                }
+                if (linkDiagnostics.summaryState === "connecting" || linkDiagnostics.summaryState === "configured_disconnected") {
+                    return qgcPal.colorOrange
+                }
+                return qgcPal.colorGrey
+            }
+
+            MerivusLinkDiagnostics {
+                id: linkDiagnostics
+            }
 
             ColumnLayout {
                 id:         outerColumn
@@ -171,7 +186,7 @@ SetupPage {
                 }
 
                 QGCLabel {
-                    text:                   qsTr("GNSS / Navigation Loss Failsafe")
+                    text:                   qsTr("GNSS / Navigation Loss Protection")
                 }
 
                 Rectangle {
@@ -199,7 +214,7 @@ SetupPage {
                             anchors.verticalCenter: parent.verticalCenter
 
                             QGCLabel {
-                                text:               qsTr("Navigation Loss Action:")
+                                text:               qsTr("Loss Response:")
                                 Layout.minimumWidth:_labelWidth
                                 Layout.fillWidth:   true
                             }
@@ -211,7 +226,7 @@ SetupPage {
                             }
 
                             QGCLabel {
-                                text:               qsTr("Navigation Loss Delay:")
+                                text:               qsTr("Activation Delay:")
                                 Layout.fillWidth:   true
                             }
                             FactTextField {
@@ -220,18 +235,27 @@ SetupPage {
                             }
 
                             QGCLabel {
-                                text:               qsTr("Backup Positioning:")
+                                text:               qsTr("Trigger:")
                                 Layout.fillWidth:   true
                             }
                             QGCLabel {
-                                text:               qsTr("Handled by PX4 estimator inputs")
+                                text:               qsTr("PX4 position estimate stays invalid")
+                                Layout.fillWidth:   true
+                            }
+
+                            QGCLabel {
+                                text:               qsTr("Execution:")
+                                Layout.fillWidth:   true
+                            }
+                            QGCLabel {
+                                text:               qsTr("Flight controller (independent of GCS connection)")
                                 Layout.fillWidth:   true
                             }
                         }
                     }
                 }
                 QGCLabel {
-                    text:                   qsTr("IoT TCP / MAVLink Link Failsafe")
+                    text:                   qsTr("TCP / MAVLink Link Protection")
                 }
 
                 Rectangle {
@@ -247,7 +271,7 @@ SetupPage {
                             height:                 _imageHeight
                             anchors.verticalCenter: parent.verticalCenter
                             QGCColoredImage {
-                                color:              qgcPal.text
+                                color:              _tcpStatusColor
                                 source:             "/qmlimages/MerivusSafetyTCP.svg"
                                 height:             _imageHeight
                                 width:              _imageHeight
@@ -259,31 +283,26 @@ SetupPage {
                             anchors.verticalCenter: parent.verticalCenter
 
                             QGCLabel {
-                                text:               qsTr("Cloud IoT TCP Status:")
+                                text:               qsTr("TCP Status:")
                                 Layout.minimumWidth:_labelWidth
                                 Layout.fillWidth:   true
                             }
                             QGCLabel {
-                                text:               _tcpStatusPendingText
+                                text:               linkDiagnostics.summaryText
+                                color:              _tcpStatusColor
+                                font.bold:          true
                                 Layout.minimumWidth:_editFieldWidth
                                 Layout.fillWidth:   true
                             }
 
                             QGCLabel {
-                                text:               qsTr("TCP Heartbeat Timeout:")
+                                text:               qsTr("TCP Links:")
                                 Layout.fillWidth:   true
                             }
                             QGCLabel {
-                                text:               _tcpTimeoutPendingText
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("TCP Loss Response:")
-                                Layout.fillWidth:   true
-                            }
-                            QGCLabel {
-                                text:               _tcpLossResponseText
+                                text:               linkDiagnostics.hasConfiguredTcpLink
+                                                    ? qsTr("%1 connected / %2 configured").arg(linkDiagnostics.connectedTcpLinkCount).arg(linkDiagnostics.tcpLinkCount)
+                                                    : qsTr("Not configured")
                                 Layout.fillWidth:   true
                             }
 
@@ -298,11 +317,23 @@ SetupPage {
                             }
 
                             QGCLabel {
-                                text:               qsTr("MAVLink Loss Timeout:")
+                                text:               qsTr("Loss Timeout:")
+                                enabled:            _dataLinkFailsafeEnabled
                                 Layout.fillWidth:   true
                             }
                             FactTextField {
                                 fact:               _dlLossTimeout
+                                enabled:            _dataLinkFailsafeEnabled
+                                Layout.fillWidth:   true
+                            }
+
+                            QGCLabel {
+                                text:               qsTr("Protection Scope:")
+                                Layout.fillWidth:   true
+                            }
+                            QGCLabel {
+                                text:               qsTr("PX4 handles MAVLink loss; TCP status is monitoring only")
+                                wrapMode:           Text.WordWrap
                                 Layout.fillWidth:   true
                             }
                         }
@@ -466,58 +497,6 @@ SetupPage {
                             }
                             FactTextField {
                                 fact:               controller.getParameterFact(-1, "COM_RC_LOSS_T")
-                                Layout.fillWidth:   true
-                            }
-                        }
-                    }
-                }
-
-                QGCLabel {
-                    text:                   qsTr("Data Link Loss Failsafe Trigger")
-                }
-
-                Rectangle {
-                    width:                  mainRow.width           + (_margins * 2)
-                    height:                 dataLinkLossGrid.height + (_margins * 2)
-                    color:                  qgcPal.windowShade
-                    Row {
-                        id:                 dataLinkLossGrid
-                        spacing:            _margins
-                        anchors.centerIn:   parent
-                        Item {
-                            width:                  _imageWidth
-                            height:                 _imageHeight
-                            anchors.verticalCenter: parent.verticalCenter
-                            Image {
-                                mipmap:             true
-                                fillMode:           Image.PreserveAspectFit
-                                source:             qgcPal.globalTheme === QGCPalette.Light ? "/qmlimages/DatalinkLossLight.svg" : "/qmlimages/DatalinkLoss.svg"
-                                height:             _imageHeight
-                                anchors.centerIn:   parent
-                            }
-                        }
-                        GridLayout {
-                            columns:                2
-                            anchors.verticalCenter: parent.verticalCenter
-
-                            QGCLabel {
-                                text:               qsTr("Failsafe Action:")
-                                Layout.minimumWidth:_labelWidth
-                                Layout.fillWidth:   true
-                            }
-                            FactComboBox {
-                                fact:               _dlLossAction
-                                indexModel:         false
-                                Layout.minimumWidth:_editFieldWidth
-                                Layout.fillWidth:   true
-                            }
-
-                            QGCLabel {
-                                text:               qsTr("Data Link Loss Timeout:")
-                                Layout.fillWidth:   true
-                            }
-                            FactTextField {
-                                fact:               controller.getParameterFact(-1, "COM_DL_LOSS_T")
                                 Layout.fillWidth:   true
                             }
                         }
