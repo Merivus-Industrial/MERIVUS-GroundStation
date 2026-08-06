@@ -350,14 +350,15 @@ Item {
                 FactTextField {
                     fact:               _esriFact
                     visible:            _esriFact ? _esriFact.visible : false
-                    maximumLength:      256
+                    echoMode:           TextInput.Password
+                    maximumLength:      2048
                     width:              ScreenTools.defaultFontPixelWidth * 30
                 }
                 QGCLabel {
                     anchors.left:   parent.left
                     anchors.right:  parent.right
                     wrapMode:       Text.WordWrap
-                    text:           qsTr("To enable Esri maps, enter your access token.")
+                    text:           qsTr("Enter an ArcGIS access token or API key. It is sent only to Esri over HTTPS and must not be committed to source control.")
                     visible:        _esriFact ? _esriFact.visible : false
                     font.pointSize: _adjustableFontPointSize
                 }

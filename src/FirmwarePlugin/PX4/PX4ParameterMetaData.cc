@@ -19,6 +19,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QDebug>
+#include <QLocale>
 
 static const char* kInvalidConverstion = "Internal Error: No support for string parameters";
 
@@ -26,7 +27,67 @@ QGC_LOGGING_CATEGORY(PX4ParameterMetaDataLog, "PX4ParameterMetaDataLog")
 
 PX4ParameterMetaData::PX4ParameterMetaData(void)
 {
+    if (QLocale().language() == QLocale::Chinese) {
+        const auto add = [this](const QString& name, const QString& shortText, const QString& longText) {
+            _parameterTranslations.insert(name, QJsonObject {
+                { QStringLiteral("short"), shortText },
+                { QStringLiteral("long"), longText }
+            });
+        };
 
+        add(QStringLiteral("BAT1_I_OVERWRITE"), QStringLiteral("电池 1 静置电流覆盖值"), QStringLiteral("覆盖电池 1 在静置状态下的电流读数。保持为 0 时使用实际测量值。"));
+        add(QStringLiteral("BAT2_I_OVERWRITE"), QStringLiteral("电池 2 静置电流覆盖值"), QStringLiteral("覆盖电池 2 在静置状态下的电流读数。保持为 0 时使用实际测量值。"));
+        add(QStringLiteral("CAL_MAG0_XCOMP"), QStringLiteral("磁力计 0：X 轴油门补偿"), QStringLiteral("磁力计 0 的 X 轴油门相关补偿量。"));
+        add(QStringLiteral("CAL_MAG0_YCOMP"), QStringLiteral("磁力计 0：Y 轴油门补偿"), QStringLiteral("磁力计 0 的 Y 轴油门相关补偿量。"));
+        add(QStringLiteral("CAL_MAG0_ZCOMP"), QStringLiteral("磁力计 0：Z 轴油门补偿"), QStringLiteral("磁力计 0 的 Z 轴油门相关补偿量。"));
+        add(QStringLiteral("COM_ARM_CHK_ESCS"), QStringLiteral("启用 ESC 遥测解锁检查"), QStringLiteral("启用后，解锁检查会验证支持遥测的 ESC 是否在线及是否报告故障。仅在电调确实支持并已启用遥测时使用。"));
+        add(QStringLiteral("COM_FLT_PROFILE"), QStringLiteral("用户飞行配置档"), QStringLiteral("选择当前使用的用户飞行配置档。"));
+        add(QStringLiteral("COM_RCL_EXCEPT"), QStringLiteral("手动控制丢失例外项"), QStringLiteral("设置在哪些导航状态下忽略遥控链路丢失处理。"));
+        add(QStringLiteral("COM_SPOOLUP_TIME"), QStringLiteral("电机启动等待时间"), QStringLiteral("从解锁到允许继续执行导航动作之间的强制等待时间。"));
+        add(QStringLiteral("DSHOT_3D_ENABLE"), QStringLiteral("启用 DShot 3D 模式"), QStringLiteral("使用 DShot 和兼容混控器时允许电机双向旋转。"));
+        add(QStringLiteral("DSHOT_BIDIR_EN"), QStringLiteral("启用双向 DShot"), QStringLiteral("启用双向 DShot，从兼容电调接收转速遥测。需要飞控输出、ESC 固件和接线均支持该功能。"));
+        add(QStringLiteral("DSHOT_MIN"), QStringLiteral("DShot 最小电机输出"), QStringLiteral("设置 DShot 的最小电机输出百分比。"));
+        add(QStringLiteral("EV_TSK_RC_LOSS"), QStringLiteral("遥控链路丢失告警"), QStringLiteral("控制任务事件中的遥控链路丢失告警。"));
+        add(QStringLiteral("FD_ACT_EN"), QStringLiteral("启用执行器故障检查"), QStringLiteral("启用执行器故障检测。"));
+        add(QStringLiteral("FD_ESCS_EN"), QStringLiteral("启用 ESC 解锁状态检查"), QStringLiteral("启用后，故障检测器会在飞行器解锁时确认所有 ESC 均成功解锁；若未收到 ESC 反馈，飞行器可能自动取消解锁。"));
+        add(QStringLiteral("HTE_VZ_THR"), QStringLiteral("灵敏度降低的垂直速度阈值"), QStringLiteral("超过该垂直速度阈值时降低相关估计器的检测灵敏度。"));
+        add(QStringLiteral("IMU_GYRO_DNF_BW"), QStringLiteral("陀螺仪 ESC 陷波滤波带宽"), QStringLiteral("设置陀螺仪 ESC 陷波滤波器带宽。"));
+        add(QStringLiteral("IMU_GYRO_DNF_EN"), QStringLiteral("陀螺仪动态陷波滤波"), QStringLiteral("启用陀螺仪动态陷波滤波。"));
+        add(QStringLiteral("IMU_GYRO_DNF_HMC"), QStringLiteral("陀螺仪动态陷波谐波数"), QStringLiteral("设置动态陷波滤波器使用的谐波数量。"));
+        add(QStringLiteral("MOT_POLE_COUNT"), QStringLiteral("电机磁极数量"), QStringLiteral("设置电机磁极总数，用于将电气转速换算为机械转速。请填写磁极数而不是磁极对数。"));
+        add(QStringLiteral("MPC_LAND_ALT1"), QStringLiteral("缓慢下降第一阶段高度"), QStringLiteral("进入第一阶段减速下降时相对地面的高度。"));
+        add(QStringLiteral("MPC_LAND_ALT2"), QStringLiteral("缓慢着陆第二阶段高度"), QStringLiteral("进入第二阶段缓慢着陆时相对地面的高度。"));
+        add(QStringLiteral("MPC_LAND_ALT3"), QStringLiteral("缓慢着陆第三阶段高度"), QStringLiteral("进入第三阶段最终着陆时相对地面的高度。"));
+
+        const auto addBatterySource = [this](const QString& name, const QString& batteryNumber) {
+            _parameterTranslations.insert(name, QJsonObject {
+                { QStringLiteral("short"), QStringLiteral("电池 %1 监测来源").arg(batteryNumber) },
+                { QStringLiteral("long"), QStringLiteral("选择电池 %1 数据来源。电源模块使用飞控 ADC 或 I²C 电源监测器；外部来源通过 MAVLink/CAN 提供电池状态；ESC 来源要求电调遥测同时提供电压和电流。").arg(batteryNumber) },
+                { QStringLiteral("values"), QJsonObject {
+                    { QStringLiteral("-1"), QStringLiteral("已禁用") },
+                    { QStringLiteral("0"), QStringLiteral("电源模块") },
+                    { QStringLiteral("1"), QStringLiteral("外部数据") },
+                    { QStringLiteral("2"), QStringLiteral("ESC 遥测") }
+                } }
+            });
+        };
+        addBatterySource(QStringLiteral("BAT1_SOURCE"), QStringLiteral("1"));
+        addBatterySource(QStringLiteral("BAT2_SOURCE"), QStringLiteral("2"));
+    }
+}
+
+QString PX4ParameterMetaData::_localizedText(const QString& parameterName, const QString& field, const QString& sourceText) const
+{
+    const QJsonObject parameter = _parameterTranslations.value(parameterName).toObject();
+    const QString localized = parameter.value(field).toString();
+    return localized.isEmpty() ? sourceText : localized;
+}
+
+QString PX4ParameterMetaData::_localizedOption(const QString& parameterName, const QString& field, const QString& key, const QString& sourceText) const
+{
+    const QJsonObject parameter = _parameterTranslations.value(parameterName).toObject();
+    const QString localized = parameter.value(field).toObject().value(key).toString();
+    return localized.isEmpty() ? sourceText : localized;
 }
 
 /// Converts a string to a typed QVariant
@@ -251,13 +312,13 @@ void PX4ParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
                             QString text = xml.readElementText();
                             text = text.replace("\n", " ");
                             qCDebug(PX4ParameterMetaDataLog) << "Short description:" << text;
-                            metaData->setShortDescription(text);
+                            metaData->setShortDescription(_localizedText(metaData->name(), QStringLiteral("short"), text));
 
                         } else if (elementName == "long_desc") {
                             QString text = xml.readElementText();
                             text = text.replace("\n", " ");
                             qCDebug(PX4ParameterMetaDataLog) << "Long description:" << text;
-                            metaData->setLongDescription(text);
+                            metaData->setLongDescription(_localizedText(metaData->name(), QStringLiteral("long"), text));
 
                         } else if (elementName == "min") {
                             QString text = xml.readElementText();
@@ -317,7 +378,7 @@ void PX4ParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
                             QVariant    enumValue;
                             QString     errorString;
                             if (metaData->convertAndValidateRaw(enumValueStr, false /* validate */, enumValue, errorString)) {
-                                metaData->addEnumInfo(enumString, enumValue);
+                                metaData->addEnumInfo(_localizedOption(metaData->name(), QStringLiteral("values"), enumValueStr, enumString), enumValue);
                             } else {
                                 qCDebug(PX4ParameterMetaDataLog) << "Invalid enum value, name:" << metaData->name()
                                                                  << " type:" << metaData->type() << " value:" << enumValueStr
@@ -357,7 +418,7 @@ void PX4ParameterMetaData::loadParameterFactMetaDataFile(const QString& metaData
                                     QVariant bitmaskValue;
                                     QString errorString;
                                     if (metaData->convertAndValidateRaw(bitmaskRawValue, true, bitmaskValue, errorString)) {
-                                        metaData->addBitmaskInfo(bitDescription, bitmaskValue);
+                                        metaData->addBitmaskInfo(_localizedOption(metaData->name(), QStringLiteral("bits"), QString::number(bit), bitDescription), bitmaskValue);
                                     } else {
                                         qCDebug(PX4ParameterMetaDataLog) << "Invalid bitmask value, name:" << metaData->name()
                                                                          << " type:" << metaData->type() << " value:" << bitmaskValue

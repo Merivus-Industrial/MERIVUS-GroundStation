@@ -13,6 +13,7 @@
 #include <QMap>
 #include <QXmlStreamReader>
 #include <QLoggingCategory>
+#include <QJsonObject>
 
 #include "FactSystem.h"
 #include "AutoPilotPlugin.h"
@@ -49,6 +50,8 @@ private:
     };    
 
     QVariant _stringToTypedVariant(const QString& string, FactMetaData::ValueType_t type, bool* convertOk);
+    QString _localizedText(const QString& parameterName, const QString& field, const QString& sourceText) const;
+    QString _localizedOption(const QString& parameterName, const QString& field, const QString& key, const QString& sourceText) const;
     static void _outputFileWarning(const QString& metaDataFile, const QString& error1, const QString& error2);
 
 #ifdef GENERATE_PARAMETER_JSON
@@ -56,5 +59,6 @@ private:
 #endif
 
     bool                                _parameterMetaDataLoaded        = false;    ///< true: parameter meta data already loaded
+    QJsonObject                         _parameterTranslations;
     FactMetaData::NameToMetaDataMap_t   _mapParameterName2FactMetaData;             ///< Maps from a parameter name to FactMetaData
 };

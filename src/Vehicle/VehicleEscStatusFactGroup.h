@@ -21,6 +21,8 @@ class VehicleEscStatusFactGroup : public FactGroup
 public:
     VehicleEscStatusFactGroup(QObject* parent = nullptr);
 
+    Q_PROPERTY(bool received READ received NOTIFY receivedChanged)
+
     Q_PROPERTY(Fact* index              READ index              CONSTANT)
 
     Q_PROPERTY(Fact* rpmFirst           READ rpmFirst           CONSTANT)
@@ -55,6 +57,8 @@ public:
     Fact* voltageThird                  () { return &_voltageThirdFact; }
     Fact* voltageFourth                 () { return &_voltageFourthFact; }
 
+    bool received                       () const { return _received; }
+
     // Overrides from FactGroup
     void handleMessage(Vehicle* vehicle, mavlink_message_t& message) override;
 
@@ -74,7 +78,13 @@ public:
     static const char* _voltageSecondFactName;
     static const char* _voltageThirdFactName;
     static const char* _voltageFourthFactName;
+
+signals:
+    void receivedChanged();
+
 private:
+    bool _received = false;
+
     Fact _indexFact;
 
     Fact _rpmFirstFact;

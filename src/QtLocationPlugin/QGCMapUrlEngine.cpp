@@ -57,10 +57,7 @@ UrlFactory::UrlFactory() : _timeout(5 * 1000) {
 
     _providersTable["Eniro Topo"] = new EniroMapProvider(this);
 
-    // To be add later on Token entry !
-    //_providersTable["Esri World Street"] = new EsriWorldStreetMapProvider(this);
-    //_providersTable["Esri World Satellite"] = new EsriWorldSatelliteMapProvider(this);
-    //_providersTable["Esri Terrain"] = new EsriTerrainMapProvider(this);
+    _providersTable["Esri Satellite"] = new EsriWorldSatelliteMapProvider(this);
 
     _providersTable["Mapbox Streets"]      = new MapboxStreetMapProvider(this);
     _providersTable["Mapbox Light"]        = new MapboxLightMapProvider(this);

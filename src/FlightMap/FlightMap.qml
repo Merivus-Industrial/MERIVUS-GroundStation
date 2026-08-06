@@ -142,4 +142,30 @@ Map {
             }
         }
     }
+
+    Rectangle {
+        id:                         esriAttribution
+        anchors.right:              parent.right
+        anchors.bottom:             parent.bottom
+        anchors.margins:            ScreenTools.defaultFontPixelWidth * 0.5
+        width:                      Math.min(parent.width - (anchors.margins * 2), esriAttributionLabel.implicitWidth + (ScreenTools.defaultFontPixelWidth * 1.5))
+        height:                     esriAttributionLabel.implicitHeight + (ScreenTools.defaultFontPixelHeight * 0.5)
+        color:                      "#B3000000"
+        radius:                     ScreenTools.defaultFontPixelWidth * 0.25
+        visible:                    _map.activeMapType && _map.activeMapType.name.indexOf("Esri ") === 0
+        z:                          QGroundControl.zOrderWidgets
+
+        QGCLabel {
+            id:                     esriAttributionLabel
+            anchors.centerIn:       parent
+            width:                  parent.width - ScreenTools.defaultFontPixelWidth
+            color:                  "white"
+            font.pointSize:         ScreenTools.smallFontPointSize
+            horizontalAlignment:   Text.AlignHCenter
+            textFormat:             Text.RichText
+            wrapMode:               Text.WordWrap
+            text:                   qsTr("Powered by <a href=\"https://goto.arcgisonline.com/maps/World_Imagery\">Esri</a> | Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community")
+            onLinkActivated:        Qt.openUrlExternally(link)
+        }
+    }
 } // Map

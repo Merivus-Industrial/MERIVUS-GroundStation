@@ -73,6 +73,17 @@ void VehicleEscStatusFactGroup::handleMessage(Vehicle* /* vehicle */, mavlink_me
     mavlink_esc_status_t content;
     mavlink_msg_esc_status_decode(&message, &content);
 
+    // This FactGroup represents motors 1-4. ESC_STATUS uses index as the first
+    // ESC in the four-item block, so a later block must not overwrite it.
+    if (content.index != 0) {
+        return;
+    }
+
+    if (!_received) {
+        _received = true;
+        emit receivedChanged();
+    }
+
     index()->setRawValue                        (content.index);
 
     rpmFirst()->setRawValue                     (content.rpm[0]);
