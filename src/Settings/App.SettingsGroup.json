@@ -223,8 +223,8 @@
 },
 {
     "name":             "esriToken",
-    "shortDesc": "Access token to Esri maps",
-    "longDesc":  "Your personal access token for Esri maps",
+    "shortDesc": "ArcGIS token for Esri maps",
+    "longDesc":  "ArcGIS access token or API key sent to Esri using HTTPS Bearer authentication",
     "type":             "string",
     "default":     ""
 },

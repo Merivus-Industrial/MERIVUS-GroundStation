@@ -11,41 +11,39 @@
 #include "QGCApplication.h"
 #include "SettingsManager.h"
 
-EsriMapProvider::EsriMapProvider(const quint32 averageSize, const QGeoMapType::MapStyle mapType, QObject *parent)
-    : MapProvider(QString(), QString(), averageSize, mapType, parent) {}
+namespace {
+constexpr auto kWorldImageryUrl = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/%1/%2/%3";
+}
 
-QNetworkRequest EsriMapProvider::getTileURL(const int x, const int y, const int zoom, QNetworkAccessManager* networkManager) {
-    //-- Build URL
+EsriWorldSatelliteMapProvider::EsriWorldSatelliteMapProvider(QObject* parent)
+    : MapProvider(QString(), QString(), AVERAGE_TILE_SIZE, QGeoMapType::SatelliteMapDay, parent)
+{
+}
+
+QNetworkRequest EsriWorldSatelliteMapProvider::getTileURL(const int x, const int y, const int zoom, QNetworkAccessManager* networkManager)
+{
     QNetworkRequest request;
     const QString url = _getURL(x, y, zoom, networkManager);
+
     if (url.isEmpty()) {
         return request;
     }
+
     request.setUrl(QUrl(url));
-    request.setRawHeader(QByteArrayLiteral("Accept"), QByteArrayLiteral("*/*"));
-    const QByteArray token = qgcApp()->toolbox()->settingsManager()->appSettings()->esriToken()->rawValue().toString().toLatin1();
-    request.setRawHeader(QByteArrayLiteral("User-Agent"), QByteArrayLiteral("Qt Location based application"));
-    request.setRawHeader(QByteArrayLiteral("User-Token"), token);
+    request.setRawHeader(QByteArrayLiteral("Accept"), QByteArrayLiteral("image/jpeg,image/*;q=0.8,*/*;q=0.5"));
+    request.setRawHeader(QByteArrayLiteral("User-Agent"), QByteArrayLiteral("MERIVUS Ground Station"));
+
+    const QByteArray token = qgcApp()->toolbox()->settingsManager()->appSettings()->esriToken()->rawValue().toString().trimmed().toUtf8();
+
+    if (!token.isEmpty()) {
+        request.setRawHeader(QByteArrayLiteral("Authorization"), QByteArrayLiteral("Bearer ") + token);
+    }
+
     return request;
 }
 
-static const QString WorldStreetMapUrl = QStringLiteral("http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/%1/%2/%3");
-
-QString EsriWorldStreetMapProvider::_getURL(const int x, const int y, const int zoom, QNetworkAccessManager* networkManager) {
+QString EsriWorldSatelliteMapProvider::_getURL(const int x, const int y, const int zoom, QNetworkAccessManager* networkManager)
+{
     Q_UNUSED(networkManager)
-    return WorldStreetMapUrl.arg(zoom).arg(y).arg(x);
-}
-
-static const QString WorldSatelliteMapUrl = QStringLiteral("http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/%1/%2/%3");
-
-QString EsriWorldSatelliteMapProvider::_getURL(const int x, const int y, const int zoom, QNetworkAccessManager* networkManager) {
-    Q_UNUSED(networkManager)
-    return WorldSatelliteMapUrl.arg(zoom).arg(y).arg(x);
-}
-
-static const QString TerrainMapUrl = QStringLiteral("http://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/%1/%2/%3");
-
-QString EsriTerrainMapProvider::_getURL(const int x, const int y, const int zoom, QNetworkAccessManager* networkManager) {
-    Q_UNUSED(networkManager)
-    return TerrainMapUrl.arg(zoom).arg(y).arg(x);
+    return QString::fromLatin1(kWorldImageryUrl).arg(zoom).arg(y).arg(x);
 }
