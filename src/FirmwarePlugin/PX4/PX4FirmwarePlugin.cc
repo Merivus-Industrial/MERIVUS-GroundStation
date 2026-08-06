@@ -234,6 +234,23 @@ bool PX4FirmwarePlugin::isCapable(const Vehicle *vehicle, FirmwareCapabilities c
 void PX4FirmwarePlugin::initializeVehicle(Vehicle* vehicle)
 {
     vehicle->setFirmwarePluginInstanceData(new PX4FirmwarePluginInstanceData);
+
+    // ESC_STATUS is not part of every default PX4 stream. Request it after the
+    // initial handshake so TCP and serial links expose the same ESC telemetry.
+    const auto requestEscTelemetry = [vehicle]() {
+        vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
+                                MAV_CMD_SET_MESSAGE_INTERVAL,
+                                false /* showError */,
+                                MAVLINK_MSG_ID_ESC_STATUS,
+                                200000.0f /* 5 Hz, microseconds */);
+    };
+
+    if (vehicle->isInitialConnectComplete()) {
+        requestEscTelemetry();
+    } else {
+        QObject::connect(vehicle, &Vehicle::initialConnectComplete,
+                         vehicle, requestEscTelemetry);
+    }
 }
 
 bool PX4FirmwarePlugin::sendHomePositionToVehicle(void)

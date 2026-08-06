@@ -34,6 +34,8 @@ QGCPopupDialog {
     signal valueChanged
 
     property real   _editFieldWidth:            ScreenTools.defaultFontPixelWidth * 20
+    property real   _dialogWidth:               Math.min(root._maxContentWidth - (root._contentMargin * 2),
+                                                         Math.max(ScreenTools.defaultFontPixelWidth * 56, 520))
     property bool   _longDescriptionAvailable:  fact.longDescription != ""
     property bool   _editingParameter:          fact.componentId != 0
     property bool   _allowForceSave:            QGroundControl.corePlugin.showAdvancedUI || !_editingParameter
@@ -94,7 +96,7 @@ QGCPopupDialog {
     }
 
     ColumnLayout {
-        width:      editRow.width
+        width:      _dialogWidth
         spacing:    globals.defaultTextHeight
 
         QGCLabel {
@@ -107,11 +109,13 @@ QGCPopupDialog {
 
         RowLayout {
             id:         editRow
+            Layout.fillWidth: true
             spacing:    ScreenTools.defaultFontPixelWidth
 
             QGCTextField {
                 id:                 valueField
-                width:              _editFieldWidth
+                Layout.fillWidth:   true
+                Layout.minimumWidth: _editFieldWidth
                 text:               validate ? validateValue : fact.valueString
                 unitsLabel:         fact.units
                 showUnits:          fact.units != ""
@@ -124,7 +128,8 @@ QGCPopupDialog {
 
             QGCComboBox {
                 id:         factCombo
-                width:      _editFieldWidth
+                Layout.fillWidth:   true
+                Layout.minimumWidth: _editFieldWidth
                 model:      fact.enumStrings
                 visible:    _showCombo
                 focus:      setFocus && visible
@@ -158,6 +163,7 @@ QGCPopupDialog {
 
         Column {
             id:         bitmaskColumn
+            Layout.fillWidth: true
             spacing:    ScreenTools.defaultFontPixelHeight / 2
             visible:    fact.bitmaskStrings.length > 0
 

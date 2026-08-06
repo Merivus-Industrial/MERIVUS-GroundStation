@@ -201,21 +201,15 @@ function escFact(vehicle, prefix, motorIndex) {
         return escHasData(vehicle, motorIndex) ? numberText(escFact(vehicle, prefix, motorIndex), decimals, suffix) : "--"
     }
 
-    function escFactNonZero(vehicle, prefix, motorIndex) {
-        var fact = escFact(vehicle, prefix, motorIndex)
-        return factHasValue(fact) && Math.abs(Number(fact.rawValue)) > 0.001
-    }
-
     function escHasData(vehicle, motorIndex) {
-        return escFactNonZero(vehicle, "rpm", motorIndex)
-            || escFactNonZero(vehicle, "current", motorIndex)
-            || escFactNonZero(vehicle, "voltage", motorIndex)
+        return !!(vehicle && vehicle.escStatus && vehicle.escStatus.received)
     }
 
     function escTipText(motorIndex) {
         var label = tr("电机 M%1").arg(motorIndex + 1)
         if (!focusVehicle) return label + "\n" + tr("等待飞行器接入后显示 ESC 遥测。")
-        if (!escHasData(focusVehicle, motorIndex)) return label + "\n" + tr("等待 ESC_STATUS 遥测；收到后显示转速、电流、电压。")
+        if (!escHasData(focusVehicle, motorIndex)) return label + "\n" +
+                tr("已请求 ESC 遥测，飞控暂未返回数据。请确认已启用双向 DShot 或 CAN ESC 遥测。")
         return label + "\n" +
                tr("转速：%1").arg(escNumber(focusVehicle, "rpm", motorIndex, 0, "rpm")) + "\n" +
                tr("电流：%1").arg(escNumber(focusVehicle, "current", motorIndex, 1, "A")) + "\n" +
@@ -245,11 +239,13 @@ function escFact(vehicle, prefix, motorIndex) {
 
     function showFloatingToolTip(sourceItem, text, align) {
         if (!sourceItem || !text) return
-        var anchor = sourceItem.mapToItem(root, sourceItem.width, sourceItem.height + 6)
+        var anchor = sourceItem.mapToItem(root, 0, 0)
         floatingToolTip.text = text
         floatingToolTip.align = align ? align : "right"
-        floatingToolTip.anchorX = anchor.x
-        floatingToolTip.anchorY = anchor.y
+        floatingToolTip.sourceX = anchor.x
+        floatingToolTip.sourceY = anchor.y
+        floatingToolTip.sourceWidth = sourceItem.width
+        floatingToolTip.sourceHeight = sourceItem.height
     }
 
     function hideFloatingToolTip() { floatingToolTip.text = "" }
@@ -769,14 +765,9 @@ function escFact(vehicle, prefix, motorIndex) {
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.NoButton
-                        }
-                        MerivusToolTip {
-                            visible: escMouse.containsMouse
-                            text: root.escTipText(modelData.index)
-                            anchors.left: parent.left
-                            anchors.bottom: parent.top
-                            anchors.bottomMargin: 6
-                            maximumWidth: 240
+                            onContainsMouseChanged: containsMouse
+                                ? root.showFloatingToolTip(this, root.escTipText(modelData.index), "right")
+                                : root.hideFloatingToolTip()
                         }
                     }
                 }
@@ -1291,7 +1282,7 @@ function escFact(vehicle, prefix, motorIndex) {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.NoButton
-                                    onContainsMouseChanged: containsMouse ? root.showFloatingToolTip(this, tr("Attitude indicator: displays roll and pitch from the selected vehicle attitude telemetry."), "left") : root.hideFloatingToolTip()
+                                    onContainsMouseChanged: containsMouse ? root.showFloatingToolTip(this, tr("水平仪：显示所选无人机遥测中的横滚角与俯仰角。"), "left") : root.hideFloatingToolTip()
                                 }
                             }
 
@@ -1352,7 +1343,7 @@ function escFact(vehicle, prefix, motorIndex) {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     acceptedButtons: Qt.NoButton
-                                    onContainsMouseChanged: containsMouse ? root.showFloatingToolTip(this, tr("Compass: displays the selected vehicle heading; 0/360 degrees points north."), "left") : root.hideFloatingToolTip()
+                                    onContainsMouseChanged: containsMouse ? root.showFloatingToolTip(this, tr("指南针：显示所选无人机航向，0°/360° 表示正北。"), "left") : root.hideFloatingToolTip()
                                 }
                             }
                         }
@@ -1383,9 +1374,9 @@ function escFact(vehicle, prefix, motorIndex) {
                                     spacing: 6
                                     Repeater {
                                         model: [
-                                            { label: "X", axis: "xAxis", tip: tr("X-axis vibration: lateral vibration level for spotting IMU or frame anomalies.") },
-                                            { label: "Y", axis: "yAxis", tip: tr("Y-axis vibration: longitudinal vibration level for spotting IMU or frame anomalies.") },
-                                            { label: "Z", axis: "zAxis", tip: tr("Z-axis vibration: vertical vibration level for spotting propeller, motor, or mounting resonance.") }
+                                            { label: "X", axis: "xAxis", tip: tr("X 轴振动：横向振动水平，用于发现 IMU 或机架异常。") },
+                                            { label: "Y", axis: "yAxis", tip: tr("Y 轴振动：纵向振动水平，用于发现 IMU 或机架异常。") },
+                                            { label: "Z", axis: "zAxis", tip: tr("Z 轴振动：垂向振动水平，用于发现桨叶、电机或安装共振。") }
                                         ]
                                         Rectangle {
                                             Layout.fillWidth: true
@@ -1405,7 +1396,7 @@ function escFact(vehicle, prefix, motorIndex) {
                                                     radius: 2
                                                     color: root.rightVehicle && root.rightVehicle.vibration ? root.accent : root.mutedLine
                                                 }
-                                                QGCLabel { anchors.horizontalCenter: parent.horizontalCenter; text: tr("vibe"); color: qgcPal.colorGrey; font.pointSize: root.fontPointSize(9) }
+                                                QGCLabel { anchors.horizontalCenter: parent.horizontalCenter; text: tr("振动"); color: qgcPal.colorGrey; font.pointSize: root.fontPointSize(9) }
                                             }
                                             MouseArea {
                                                 anchors.fill: parent
@@ -1663,12 +1654,24 @@ function escFact(vehicle, prefix, motorIndex) {
 
     MerivusToolTip {
         id: floatingToolTip
-        property real anchorX: 0
-        property real anchorY: 0
+        property real sourceX: 0
+        property real sourceY: 0
+        property real sourceWidth: 0
+        property real sourceHeight: 0
         property string align: "right"
 
         z: 1000000
-        x: root.clamp(align === "right" ? anchorX - width : anchorX, 0, Math.max(0, root.width - width))
-        y: root.clamp(anchorY, 0, Math.max(0, root.height - height))
+        x: {
+            var gap = 8
+            var preferred = align === "left" ? sourceX - width - gap : sourceX + sourceWidth + gap
+            var alternate = align === "left" ? sourceX + sourceWidth + gap : sourceX - width - gap
+            var fits = preferred >= root.margin && preferred + width <= root.width - root.margin
+            return root.clamp(fits ? preferred : alternate,
+                              root.margin,
+                              Math.max(root.margin, root.width - width - root.margin))
+        }
+        y: root.clamp(sourceY + (sourceHeight - height) / 2,
+                      root.margin,
+                      Math.max(root.margin, root.height - height - root.margin))
     }
 }
