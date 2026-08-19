@@ -43,13 +43,40 @@ Rectangle {
     function gpsStatusText() {
         if (!activeVehicle || !activeVehicle.gps) return qsTr("无数据")
         var count = Number(activeVehicle.gps.count.rawValue)
-        return isNaN(count) || count < 0 ? qsTr("无数据") : qsTr("%1 星").arg(count)
+        var fixType = Number(activeVehicle.gps.lock.rawValue)
+        if (isNaN(fixType) || fixType < 2) return qsTr("无有效定位")
+        var fixText = fixType === 2 ? qsTr("2D")
+                    : fixType === 3 ? qsTr("3D")
+                    : fixType === 4 ? qsTr("差分")
+                    : fixType === 5 ? qsTr("RTK 浮点")
+                    : fixType === 6 ? qsTr("RTK 固定")
+                    : qsTr("定位 %1").arg(fixType)
+        return isNaN(count) || count < 0
+                ? fixText
+                : qsTr("%1 · %2 星").arg(fixText).arg(count)
+    }
+
+    function gpsStatusColor() {
+        if (!vehicleConnected || !activeVehicle || !activeVehicle.gps) return offlineColor
+        var fixType = Number(activeVehicle.gps.lock.rawValue)
+        if (isNaN(fixType) || fixType < 2) return criticalColor
+        return fixType >= 3 ? nominalColor : warningColor
+    }
+
+    function gpsStatusDetails() {
+        if (!activeVehicle || !activeVehicle.gps) return qsTr("尚未连接无人机")
+        var hdop = Number(activeVehicle.gps.hdop.rawValue)
+        var vdop = Number(activeVehicle.gps.vdop.rawValue)
+        var details = qsTr("定位：%1").arg(gpsStatusText())
+        if (!isNaN(hdop)) details += qsTr("\nHDOP：%1").arg(hdop.toFixed(1))
+        if (!isNaN(vdop)) details += qsTr("\nVDOP：%1").arg(vdop.toFixed(1))
+        return details
     }
 
     function triggerStatusAction(action) {
         if (action === "gps") {
             mainWindow.showMessageDialog(qsTr("GPS / RTK 状态"),
-                                         activeVehicle ? qsTr("GPS：%1").arg(gpsStatusText()) : qsTr("尚未连接无人机"))
+                                         gpsStatusDetails())
         } else if (action === "alerts") {
             dropMessageIndicatorTool()
         } else if (action === "logs") {
@@ -108,7 +135,7 @@ Rectangle {
                     { icon: "/qmlimages/Link.svg", title: qsTr("飞控"), value: root.vehicleConnected ? qsTr("已连接") : (root.activeVehicle ? qsTr("异常") : qsTr("未连接")), color: root.vehicleConnected ? root.nominalColor : (root.activeVehicle ? root.criticalColor : root.offlineColor), action: "", tip: qsTr("飞控链路状态") },
                     { icon: "/qmlimages/wifi.svg", title: "TCP", value: linkDiagnostics.summaryText, color: root.tcpStatusColor(), action: "network", tip: linkDiagnostics.detailText },
                     { icon: "/qmlimages/Signal100.svg", title: qsTr("心跳"), value: root.vehicleConnected ? qsTr("正常") : qsTr("未连接"), color: root.vehicleConnected ? root.nominalColor : root.offlineColor, action: "", tip: qsTr("MAVLink 心跳状态") },
-                    { icon: "/qmlimages/Gps.svg", title: "GPS/RTK", value: root.gpsStatusText(), color: root.vehicleConnected ? root.warningColor : root.offlineColor, action: "gps", tip: qsTr("查看定位摘要") },
+                    { icon: "/qmlimages/Gps.svg", title: "GPS/RTK", value: root.gpsStatusText(), color: root.gpsStatusColor(), action: "gps", tip: qsTr("查看定位摘要") },
                     { icon: root.messageCount > 0 ? "/qmlimages/Yield.svg" : "/qmlimages/Megaphone.svg", title: qsTr("消息"), value: root.messageCount > 0 ? qsTr("%1 条").arg(root.messageCount) : qsTr("正常"), color: root.messageCount > 0 ? root.warningColor : root.nominalColor, action: "alerts", tip: qsTr("打开飞行器消息") },
                     { icon: "/qmlimages/MavlinkConsoleIcon", title: qsTr("诊断"), value: qsTr("日志"), color: root.offlineColor, action: "logs", tip: qsTr("打开应用日志") }
                 ]

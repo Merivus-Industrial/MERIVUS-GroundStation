@@ -73,6 +73,8 @@ Merivus Cloud API / Web Console / GIS Safety / Media Service
 
 ## 云端业务服务
 
+账号、组织、权限、飞行器归属、个人设置、地图资产、数据库与部署的完整目标契约见 [账号体系与云端后端工程设计](ACCOUNT_AND_CLOUD_BACKEND_DESIGN.md)。本节只保留系统总览，不作为账号与数据库实现的唯一规范。
+
 ### 目标职责
 
 - 用户认证、组织、角色和权限。

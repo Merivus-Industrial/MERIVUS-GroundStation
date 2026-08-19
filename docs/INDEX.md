@@ -11,6 +11,7 @@
 - [下一步路线](handoff/09_NEXT_STEPS.md)
 - [AI / Codex 接手说明](handoff/10_AI_CODEX_HANDOFF.md)
 - [账号与电脑迁移清单](handoff/11_ACCOUNT_AND_MACHINE_MIGRATION.md)
+- [账号体系与云端后端工程设计](architecture/ACCOUNT_AND_CLOUD_BACKEND_DESIGN.md)
 
 ## 当前版本说明书
 
@@ -32,6 +33,8 @@
 - [当前状态](architecture/CURRENT_STATE.md)
 - [仓库结构](architecture/REPO_STRUCTURE.md)
 - [目标架构](architecture/TARGET_ARCHITECTURE.md)
+- [核心软件资产说明](architecture/CORE_SOFTWARE_ASSETS.md)
+- [账号体系与云端后端工程设计](architecture/ACCOUNT_AND_CLOUD_BACKEND_DESIGN.md)
 - [接口边界](architecture/INTERFACE_CONTRACTS.md)
 - [安全边界](architecture/SAFETY_BOUNDARIES.md)
 - [路线图](architecture/ROADMAP.md)
@@ -55,6 +58,7 @@
 - [Windows 构建](development/BUILD_WINDOWS.md)
 - [Agent 开发](development/AGENT_DEVELOPMENT.md)
 - [AI GUI 手工烟测清单](development/AI_GUI_SMOKE_CHECKLIST.md)
+- [PX4 起飞健康检查与自动解锁契约](development/PX4_TAKEOFF_HEALTH_CHECK.md)
 - [仓库整理报告](development/REPO_CLEANUP_REPORT.md)
 - [Git 工作流](development/GIT_WORKFLOW.md)
 - [GitHub 仓库规范](development/GITHUB_REPO_GUIDELINES.md)

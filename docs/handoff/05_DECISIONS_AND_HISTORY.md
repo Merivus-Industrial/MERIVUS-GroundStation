@@ -24,6 +24,6 @@
 | `e894666` | 将完整 AI/Agent 能力与文档 squash 集成主线 | 当前产品基线组成 | 是 | 整理报告记录 63 Python 测试、27 C++ Policy 测试、构建/打包/HTTP；本次未全量复跑 |
 | `74b6039` | macOS Qt 安装 Python 环境 CI 修复 | 主线祖先 | 是 | 本次未运行 CI/macOS |
 | `a40c9e4` / `v0.1.0-dev.1` | 阶段发布、AI 面板与 Supervisor 收口 | 当前有效产品基线 | 是 | 历史 QML/Release 增量构建；本次未构建 |
-| `docs/project-handoff` | 本套交接文档 | 当前文档分支 | 尚未合并 | Markdown/链接/差异轻量检查；不含业务代码 |
+| `9bb0807` | 2026-08-19 仓库整理开始时的产品基线 | 主线祖先 | 是 | 作为本轮目录、代码、文档和远端状态审计起点 |
 
-当前仅有本地 `main`、本交接分支和 `origin/main`。`backup/before-repo-cleanup-20260714-1637` 是历史备份标签，不是当前长期开发分支。
+`main` 是唯一长期集成分支；功能分支完成 PR 验证并合并后应删除。`backup/before-repo-cleanup-20260714-1637` 是历史备份标签，不是长期开发分支。

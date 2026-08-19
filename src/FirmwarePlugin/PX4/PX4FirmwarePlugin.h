@@ -13,6 +13,18 @@
 #include "ParameterManager.h"
 #include "PX4ParameterMetaData.h"
 
+#include <QTimer>
+
+enum class PX4TakeoffHealthCheckStage {
+    Idle,
+    RefreshBeforeTakeoff,
+    WaitingForTakeoffAcceptance,
+    RefreshBeforeArm,
+    WaitingForArmAcceptance,
+    RefreshAfterTakeoffRejection,
+    RefreshAfterArmRejection,
+};
+
 class PX4FirmwarePlugin : public FirmwarePlugin
 {
     Q_OBJECT
@@ -114,6 +126,15 @@ private slots:
 
 private:
     void    _handleAutopilotVersion         (Vehicle* vehicle, mavlink_message_t* message);
+    void    _requestTakeoffHealthCheck      (Vehicle* vehicle, PX4TakeoffHealthCheckStage stage, double takeoffAltRel = 0.0);
+    void    _takeoffHealthReportUpdated     (Vehicle* vehicle);
+    void    _takeoffHealthCheckTimedOut     (Vehicle* vehicle);
+    void    _tryCompleteTakeoffHealthCheck  (Vehicle* vehicle);
+    void    _continueTakeoff                (Vehicle* vehicle, PX4TakeoffHealthCheckStage completedStage, double takeoffAltRel);
+    void    _sendTakeoffCommand             (Vehicle* vehicle, double takeoffAltRel);
+    void    _showTakeoffHealthFailure       (Vehicle* vehicle, const QString& reason);
+    QString _basicTakeoffHealthFailure      (Vehicle* vehicle) const;
+    QString _basicTakeoffStatusDetails      (Vehicle* vehicle) const;
 
     QString _getLatestVersionFileUrl        (Vehicle* vehicle) override;
     QString _versionRegex                   () override;
@@ -130,4 +151,9 @@ public:
     PX4FirmwarePluginInstanceData(QObject* parent = nullptr);
 
     bool versionNotified;  ///< true: user notified over version issue
+    QTimer takeoffHealthCheckTimer;
+    PX4TakeoffHealthCheckStage takeoffHealthCheckStage{PX4TakeoffHealthCheckStage::Idle};
+    quint64 takeoffHealthReportSequence{0};
+    double pendingTakeoffAltitudeRelative{0.0};
+    bool prearmCheckAcknowledged{false};
 };

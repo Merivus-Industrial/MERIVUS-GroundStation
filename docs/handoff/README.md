@@ -1,8 +1,8 @@
 # MERIVUS 工程交接入口
 
-更新时间：2026-07-20
-审计代码基线：`a40c9e4`（`v0.1.0-dev.1`）
-文档编制分支：`docs/project-handoff`
+更新时间：2026-08-19
+本轮审计基线：`9bb0807`（整理开始时的 `origin/main`）
+集成分支：`main`；开发改动通过短期功能分支和 PR 进入主分支
 
 ## 一页结论
 
@@ -27,9 +27,9 @@ flowchart LR
 | 项目 | 结论 | 证据 |
 | --- | --- | --- |
 | 产品阶段 | `0.1.0-dev.1` 开发测试初版 | [`custom/custom.pri`](../../custom/custom.pri)、[阶段说明](../releases/0.1.0-dev.1.md) |
-| 当前开发分支 | `docs/project-handoff` | 2026-07-20 `git branch --show-current` |
-| 最近有效产品提交 | `a40c9e4`，标签 `v0.1.0-dev.1` | `git log --oneline --decorate -15`、`git tag` |
-| 工作区起始状态 | 已在 `docs/project-handoff`；存在未跟踪的 `docs/handoff/` 草稿，无其他已跟踪或无关改动 | 2026-07-20 `git status --short`；本次在原草稿上继续核验和补齐 |
+| 集成策略 | `main` 为唯一长期集成分支 | 功能分支完成静态检查、轻量验证与 PR 审查后合并并删除 |
+| 本轮整理基线 | `9bb0807` | 2026-08-19 整理开始时的 `origin/main` |
+| 工作区状态 | 以 `git status --short` 和当前 PR 为准，不在长期文档中固化瞬时分支状态 | 每次交接重新执行状态检查 |
 | 当前实测 | Agent `63 passed, 6 warnings`；Windows 环境检查和 JSON 解析通过 | [测试矩阵](07_TEST_AND_VERIFICATION_MATRIX.md) |
 | 当前未实测 | QGC 完整构建、C++ Policy 测试、GUI/Agent 联调、Ollama 真模型、打包、SITL、MAVLink、实机 | [测试矩阵](07_TEST_AND_VERIFICATION_MATRIX.md) |
 

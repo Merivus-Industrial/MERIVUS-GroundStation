@@ -8176,6 +8176,99 @@ Click Ok to start the auto-tuning process.
     </message>
   </context>
   <context>
+    <name>HealthAndArmingCheckReport</name>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>No valid local position estimate</source>
+      <translation>无有效本地位置估计</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>No valid global position estimate</source>
+      <translation>无有效全局位置估计</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>No valid altitude estimate</source>
+      <translation>无有效高度估计</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS fix too low</source>
+      <translation>GPS 定位等级不足</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>Not enough GPS Satellites</source>
+      <translation>GPS 卫星数不足</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS PDOP too high</source>
+      <translation>GPS PDOP 过高</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Horizontal Position Error too high</source>
+      <translation>GPS 水平位置误差过高</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Vertical Position Error too high</source>
+      <translation>GPS 垂直位置误差过高</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Speed Accuracy too low</source>
+      <translation>GPS 速度精度不足</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Horizontal Position Drift too high</source>
+      <translation>GPS 水平位置漂移过大</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Vertical Position Drift too high</source>
+      <translation>GPS 垂直位置漂移过大</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Horizontal Speed Drift too high</source>
+      <translation>GPS 水平速度漂移过大</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>GPS Vertical Speed Drift too high</source>
+      <translation>GPS 垂直速度漂移过大</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>Estimator not using GPS</source>
+      <translation>估计器未融合 GPS</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>Poor GPS Quality</source>
+      <translation>GPS 质量不佳</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>No valid local position/GPS accuracy check failed.</source>
+      <translation>无有效本地位置/GPS 精度检查未通过</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>Takeoff check failed.</source>
+      <translation>起飞检查未通过</translation>
+    </message>
+    <message>
+      <location filename="../src/Vehicle/HealthAndArmingCheckReport.cc"/>
+      <source>%1 additional issue(s); see the preflight check panel.</source>
+      <translation>另有 %1 项，请查看飞行前检查</translation>
+    </message>
+  </context>
+  <context>
     <name>HeightIndicator</name>
     <message>
       <location filename="../src/QmlControls/HeightIndicator.qml" line="13"/>
@@ -11447,6 +11540,63 @@ Is this really what you want?</source>
       <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc" line="397"/>
       <source>Unable to takeoff, vehicle position not known.</source>
       <translation>无法起飞，飞行器位置未知。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>No valid local position/GPS accuracy check failed.</source>
+      <translation>无有效本地位置/GPS 精度检查未通过</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>No current preflight check result was received. Check the vehicle link and try again.</source>
+      <translation>未获得最新起飞检查结果，请检查飞控连接后重试。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>automatic arming</source>
+      <translation>自动解锁</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>the takeoff command</source>
+      <translation>起飞命令</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>The vehicle rejected %1, but the refreshed preflight report did not identify a blocking item.</source>
+      <translation>飞控拒绝了%1，但重新获取的起飞检查报告没有给出明确阻止项。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>No live 3D GPS fix (fix type %1, %2 satellites).</source>
+      <translation>没有实时有效的 3D GPS 定位（定位类型 %1，%2 颗卫星）。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>GPS reports fix type %1 with %2 satellites, but a valid EKF local position was not confirmed.</source>
+      <translation>GPS 报告定位类型 %1、%2 颗卫星，但尚未确认有效的 EKF 本地位置。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>GPS HDOP: %1.</source>
+      <translation>GPS HDOP：%1。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>No valid vehicle position/altitude is available.</source>
+      <translation>当前没有有效的飞行器位置/高度。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>The flight controller did not provide a current detailed preflight result; automatic arming was not attempted.</source>
+      <translation>飞控没有提供当前详细起飞检查结果；地面站未尝试自动解锁。</translation>
+    </message>
+    <message>
+      <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc"/>
+      <source>Takeoff blocked for Vehicle %1:
+%2</source>
+      <translation>飞行器 %1 已阻止起飞：
+%2</translation>
     </message>
     <message>
       <location filename="../src/FirmwarePlugin/PX4/PX4FirmwarePlugin.cc" line="461"/>

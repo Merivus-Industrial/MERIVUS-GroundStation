@@ -48,4 +48,4 @@
 - 地面站失联后所有成员依靠 3 秒会话租约超时转 AUTO_LOITER；该保护仍需 SITL 故障注入验证。
 - 当前未校验 RTK fix type、水平精度阈值和初始编队几何，双机前仍需补齐或采用足够保守的试验间距。
 - 临时 Mission 完成判定使用末航点距离和地速阈值，仍需 SITL 实测校准。
-- 配套 PX4 源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`；地面站已完成 Release 构建，但 PX4 本机工具链不可用，实机前仍必须完成 SITL、`px4_fmu-v6c_default` 构建、刷写追溯和现场人工验收。
+- 配套 PX4 源码位于 `E:\MERIVUS\FirmwarePX4`；地面站已完成 Release 构建，但 PX4 本机工具链不可用，实机前仍必须完成 SITL、`px4_fmu-v6c_default` 构建、刷写追溯和现场人工验收。

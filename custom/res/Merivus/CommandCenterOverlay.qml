@@ -133,6 +133,10 @@ Item {
 
     function metricTextFor(vehicle, kind, decimals, suffix) {
         if (kind === "time") return vehicle ? elapsedText(vehicle.flightTime) : "--"
+        if (kind === "gps" && vehicle && vehicle.gps) {
+            var fixType = Number(vehicle.gps.lock.rawValue)
+            if (isNaN(fixType) || fixType < 2) return tr("无有效定位")
+        }
         return numberText(metricFactFor(vehicle, kind), decimals, suffix)
     }
 

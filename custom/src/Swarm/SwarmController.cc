@@ -124,7 +124,7 @@ QVariantMap SwarmController::executeTakeoff(const QVariantList& selectedVehicleI
 
     const bool ok = !dispatchedIds.isEmpty();
     return _result(ok,
-                   ok ? tr("Batch takeoff commands scheduled for the selected vehicles.")
+                   ok ? tr("Batch takeoff checks scheduled for the selected vehicles.")
                       : tr("No selected vehicle met the takeoff requirements."),
                    dispatchedIds,
                    skippedIds);
@@ -587,8 +587,7 @@ bool SwarmController::_vehicleTakeoffReady(Vehicle* vehicle, double altitudeMete
         return false;
     }
 
-    HealthAndArmingCheckReport* report = vehicle->healthAndArmingCheckReport();
-    return !report || !report->supported() || report->canTakeoff();
+    return true;
 }
 
 bool SwarmController::_vehicleLandReady(Vehicle* vehicle) const
