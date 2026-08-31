@@ -67,7 +67,7 @@ ActionProposal -> Vehicle / MAVLink / Swarm / PX4
 - `src/`：QGroundControl 上游主体代码。
 - `custom/`：MERIVUS QGC Custom Build 入口、QML、资源和 C++ 扩展。
 - `agent/`：MERIVUS Local Agent、Provider、schema、测试和打包 spec。
-- `docs/`：架构、开发、硬件、流程和安全边界文档。
+- `docs/`：当前架构、开发、硬件、验证和安全边界文档。
 - `schemas/`：Agent request / response / ActionProposal JSON Schema 草案。
 - `configs/`：配置模板和策略示例。
 - `tools/dev/`：Windows 构建、Agent 打包和局部测试脚本。

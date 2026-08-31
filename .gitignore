@@ -114,6 +114,8 @@ docs/hardware/local-manuals/*.jpg
 
 # Local binary design/source documents; canonical repository documentation is Markdown.
 docs/local-artifacts/*.docx
+docs/manuals/*.docx
+docs/manuals/*代码存档*.md
 
 # Local model files and vector stores are never committed.
 models/
