@@ -23,7 +23,7 @@ env:
 
 jobs:
   build:
-    runs-on:  ubuntu-20.04
+    runs-on:  ubuntu-24.04
 
     strategy:
       matrix:
@@ -37,14 +37,10 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Get all tags for correct version determination
-        working-directory:  ${{ github.workspace }}
-        run: |
-          git fetch --all --tags -f --depth 1
+          fetch-depth: 0
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -75,10 +71,10 @@ jobs:
 
       - name: Prepare ccache timestamp
         id: ccache_cache_timestamp
-        run: echo "name=timestamp::$(date --utc +'%Y-%m-%d-%H\;%M\;%S')" >> $GITHUB_OUTPUT
+        run: echo "timestamp=$(date --utc +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
 
       - name: ccache cache files
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path:         ~/.ccache
           key:          ${{ runner.os }}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
@@ -124,7 +120,7 @@ jobs:
         run:  ccache -s
 
       - name: Save artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.ARTIFACT }}
           path: ${{ runner.temp }}/shadow_build_dir/package/${{ matrix.ARTIFACT }}

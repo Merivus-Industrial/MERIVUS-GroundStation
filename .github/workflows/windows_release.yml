@@ -23,18 +23,14 @@ env:
 
 jobs:
   build:
-    runs-on:  windows-2019
+    runs-on:  windows-2022
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Get all tags for correct version determination
-        working-directory:  ${{ github.workspace }}
-        run: |
-          git fetch --all --tags -f --depth 1
+          fetch-depth: 0
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
@@ -90,13 +86,13 @@ jobs:
               ${{ runner.temp }}\jom\jom -j2
 
       - name: Save installer artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ runner.temp }}\shadow_build_dir\staging\${{ env.ARTIFACT }}
 
       - name: Save PDB artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: qgroundcontrol.pdb
           path: ${{ runner.temp }}\shadow_build_dir\staging\qgroundcontrol.pdb
@@ -116,4 +112,3 @@ jobs:
               aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
               aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
               aws s3 cp ${{ env.ARTIFACT }} s3://qgroundcontrol/latest/${{ env.ARTIFACT }} --region us-west-2 --acl public-read
-
