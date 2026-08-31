@@ -18,7 +18,13 @@ defaults:
 env:
   SOURCE_DIR:   ${{ github.workspace }}
   QT_VERSION:   5.15.2
-  ARTIFACT:     QGroundControl.AppImage
+  ARTIFACT:     MERIVUS.AppImage
+  QGC_CUSTOM_APP_NAME: MERIVUS
+  QGC_CUSTOM_GENERIC_NAME: MERIVUS Ground Control
+  QGC_CUSTOM_BINARY_NAME: MERIVUS
+  QGC_CUSTOM_LINUX_START_SH: ${{ github.workspace }}/custom/deploy/qgroundcontrol-start.sh
+  QGC_CUSTOM_APP_ICON: ${{ github.workspace }}/custom/res/Images/CustomAppIcon.png
+  QGC_CUSTOM_APP_ICON_NAME: CustomAppIcon
   BUILD_TYPE:   ${{ fromJSON('["DailyBuild", "StableBuild"]')[ github.ref_type == 'tag' || contains(github.ref, 'Stable_' ) ] }}
 
 jobs:
