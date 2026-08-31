@@ -44,6 +44,12 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Set up Java 11
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '11'
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
