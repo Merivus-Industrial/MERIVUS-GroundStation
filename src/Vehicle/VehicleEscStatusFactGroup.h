@@ -22,8 +22,12 @@ public:
     VehicleEscStatusFactGroup(QObject* parent = nullptr);
 
     Q_PROPERTY(bool received READ received NOTIFY receivedChanged)
+    Q_PROPERTY(bool infoReceived READ infoReceived NOTIFY infoReceivedChanged)
 
     Q_PROPERTY(Fact* index              READ index              CONSTANT)
+    Q_PROPERTY(Fact* count              READ count              CONSTANT)
+    Q_PROPERTY(Fact* connectionType     READ connectionType     CONSTANT)
+    Q_PROPERTY(Fact* onlineFlags        READ onlineFlags        CONSTANT)
 
     Q_PROPERTY(Fact* rpmFirst           READ rpmFirst           CONSTANT)
     Q_PROPERTY(Fact* rpmSecond          READ rpmSecond          CONSTANT)
@@ -40,7 +44,15 @@ public:
     Q_PROPERTY(Fact* voltageThird       READ voltageThird       CONSTANT)
     Q_PROPERTY(Fact* voltageFourth      READ voltageFourth      CONSTANT)
 
+    Q_PROPERTY(Fact* temperatureFirst   READ temperatureFirst   CONSTANT)
+    Q_PROPERTY(Fact* temperatureSecond  READ temperatureSecond  CONSTANT)
+    Q_PROPERTY(Fact* temperatureThird   READ temperatureThird   CONSTANT)
+    Q_PROPERTY(Fact* temperatureFourth  READ temperatureFourth  CONSTANT)
+
     Fact* index                         () { return &_indexFact; }
+    Fact* count                         () { return &_countFact; }
+    Fact* connectionType                () { return &_connectionTypeFact; }
+    Fact* onlineFlags                   () { return &_onlineFlagsFact; }
 
     Fact* rpmFirst                      () { return &_rpmFirstFact; }
     Fact* rpmSecond                     () { return &_rpmSecondFact; }
@@ -57,12 +69,21 @@ public:
     Fact* voltageThird                  () { return &_voltageThirdFact; }
     Fact* voltageFourth                 () { return &_voltageFourthFact; }
 
+    Fact* temperatureFirst              () { return &_temperatureFirstFact; }
+    Fact* temperatureSecond             () { return &_temperatureSecondFact; }
+    Fact* temperatureThird              () { return &_temperatureThirdFact; }
+    Fact* temperatureFourth             () { return &_temperatureFourthFact; }
+
     bool received                       () const { return _received; }
+    bool infoReceived                   () const { return _infoReceived; }
 
     // Overrides from FactGroup
     void handleMessage(Vehicle* vehicle, mavlink_message_t& message) override;
 
     static const char* _indexFactName;
+    static const char* _countFactName;
+    static const char* _connectionTypeFactName;
+    static const char* _onlineFlagsFactName;
 
     static const char* _rpmFirstFactName;
     static const char* _rpmSecondFactName;
@@ -79,13 +100,23 @@ public:
     static const char* _voltageThirdFactName;
     static const char* _voltageFourthFactName;
 
+    static const char* _temperatureFirstFactName;
+    static const char* _temperatureSecondFactName;
+    static const char* _temperatureThirdFactName;
+    static const char* _temperatureFourthFactName;
+
 signals:
     void receivedChanged();
+    void infoReceivedChanged();
 
 private:
     bool _received = false;
+    bool _infoReceived = false;
 
     Fact _indexFact;
+    Fact _countFact;
+    Fact _connectionTypeFact;
+    Fact _onlineFlagsFact;
 
     Fact _rpmFirstFact;
     Fact _rpmSecondFact;
@@ -101,4 +132,9 @@ private:
     Fact _voltageSecondFact;
     Fact _voltageThirdFact;
     Fact _voltageFourthFact;
+
+    Fact _temperatureFirstFact;
+    Fact _temperatureSecondFact;
+    Fact _temperatureThirdFact;
+    Fact _temperatureFourthFact;
 };

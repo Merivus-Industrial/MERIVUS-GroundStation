@@ -1,7 +1,6 @@
 import QtQuick          2.12
 import QtQuick.Controls 2.4
 import QtQuick.Layouts  1.11
-
 import QGroundControl             1.0
 import QGroundControl.Controls    1.0
 import QGroundControl.FlightDisplay 1.0
@@ -10,6 +9,8 @@ import Merivus                    1.0
 
 Rectangle {
     id: root
+
+    GpsStatus { id: gpsStatus }
     color: qgcPal.toolbarBackground
 
     property int currentToolbar: flyViewToolbar
@@ -41,19 +42,7 @@ Rectangle {
     }
 
     function gpsStatusText() {
-        if (!activeVehicle || !activeVehicle.gps) return qsTr("无数据")
-        var count = Number(activeVehicle.gps.count.rawValue)
-        var fixType = Number(activeVehicle.gps.lock.rawValue)
-        if (isNaN(fixType) || fixType < 2) return qsTr("无有效定位")
-        var fixText = fixType === 2 ? qsTr("2D")
-                    : fixType === 3 ? qsTr("3D")
-                    : fixType === 4 ? qsTr("差分")
-                    : fixType === 5 ? qsTr("RTK 浮点")
-                    : fixType === 6 ? qsTr("RTK 固定")
-                    : qsTr("定位 %1").arg(fixType)
-        return isNaN(count) || count < 0
-                ? fixText
-                : qsTr("%1 · %2 星").arg(fixText).arg(count)
+        return gpsStatus.summary(activeVehicle)
     }
 
     function gpsStatusColor() {
@@ -64,13 +53,7 @@ Rectangle {
     }
 
     function gpsStatusDetails() {
-        if (!activeVehicle || !activeVehicle.gps) return qsTr("尚未连接无人机")
-        var hdop = Number(activeVehicle.gps.hdop.rawValue)
-        var vdop = Number(activeVehicle.gps.vdop.rawValue)
-        var details = qsTr("定位：%1").arg(gpsStatusText())
-        if (!isNaN(hdop)) details += qsTr("\nHDOP：%1").arg(hdop.toFixed(1))
-        if (!isNaN(vdop)) details += qsTr("\nVDOP：%1").arg(vdop.toFixed(1))
-        return details
+        return gpsStatus.details(activeVehicle, QGroundControl.gpsRtk)
     }
 
     function triggerStatusAction(action) {

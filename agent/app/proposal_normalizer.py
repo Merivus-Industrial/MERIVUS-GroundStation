@@ -219,6 +219,7 @@ class NormalizedProposalResult:
 
 
 def normalize_model_response(data: dict[str, Any], user_message: str | None = None) -> AgentResponseData:
+    """把不稳定的模型输出收敛为 reply + 可选 proposal，不赋予任何执行语义。"""
     reply = data.get("reply")
     if not isinstance(reply, str) or not reply.strip():
         raise ValueError("Model output must include a non-empty reply string")
@@ -547,6 +548,7 @@ def _valid_altitude(value: Any, allow_zero: bool) -> bool:
 
 
 def _strip_dangerous_fields(value: Any) -> Any:
+    """递归删除模型自报的执行、风险和底层命令字段，最终裁决留给 QGC。"""
     if isinstance(value, dict):
         return {
             key: _strip_dangerous_fields(child)

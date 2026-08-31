@@ -267,9 +267,15 @@ void PX4FirmwarePlugin::initializeVehicle(Vehicle* vehicle)
     connect(&instanceData->takeoffHealthCheckTimer, &QTimer::timeout,
             vehicle, [this, vehicle]() { _takeoffHealthCheckTimedOut(vehicle); });
 
-    // ESC_STATUS is not part of every default PX4 stream. Request it after the
-    // initial handshake so TCP and serial links expose the same ESC telemetry.
+    // ESC messages are not part of every default PX4 stream. Request both the
+    // fast measurements and the slow health data after the initial handshake.
     const auto requestEscTelemetry = [vehicle]() {
+        auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+        if (!instanceData) {
+            return;
+        }
+
+        instanceData->escStatusIntervalPending = true;
         vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
                                 MAV_CMD_SET_MESSAGE_INTERVAL,
                                 false /* showError */,
@@ -432,6 +438,18 @@ void PX4FirmwarePlugin::_mavCommandResult(int vehicleId, int component, int comm
         return;
     }
 
+    if (command == MAV_CMD_SET_MESSAGE_INTERVAL && instanceData->escStatusIntervalPending) {
+        // Vehicle serializes commands by command id, so request ESC_INFO only
+        // after the ESC_STATUS interval command has completed.
+        instanceData->escStatusIntervalPending = false;
+        vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
+                                MAV_CMD_SET_MESSAGE_INTERVAL,
+                                false /* showError */,
+                                MAVLINK_MSG_ID_ESC_INFO,
+                                1000000.0f /* 1 Hz, microseconds */);
+        return;
+    }
+
     if (command == MAV_CMD_RUN_PREARM_CHECKS
         && isTakeoffHealthRefreshStage(instanceData->takeoffHealthCheckStage)) {
         if (noReponseFromVehicle || result != MAV_RESULT_ACCEPTED) {
@@ -476,6 +494,8 @@ void PX4FirmwarePlugin::_mavCommandResult(int vehicleId, int component, int comm
 
 void PX4FirmwarePlugin::guidedModeTakeoff(Vehicle* vehicle, double takeoffAltRel)
 {
+    // 每架飞机独立运行“刷新预检 -> TAKEOFF ACK -> 再刷新 -> ARM ACK”状态机；
+    // 不能复用旧健康报告，也不能把 TAKEOFF 已接受等同于自动解锁成功。
     auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
     if (!instanceData || instanceData->takeoffHealthCheckStage != PX4TakeoffHealthCheckStage::Idle) {
         return;
@@ -531,6 +551,7 @@ void PX4FirmwarePlugin::_tryCompleteTakeoffHealthCheck(Vehicle* vehicle)
         return;
     }
 
+    // 只有预检命令 ACK 和更新序号更大的健康报告同时到达，才允许推进状态机。
     const PX4TakeoffHealthCheckStage completedStage = instanceData->takeoffHealthCheckStage;
     const double takeoffAltRel = instanceData->pendingTakeoffAltitudeRelative;
     instanceData->takeoffHealthCheckTimer.stop();
@@ -682,6 +703,40 @@ double PX4FirmwarePlugin::maximumHorizontalSpeedMultirotor(Vehicle* vehicle)
     }
 
     return FirmwarePlugin::maximumHorizontalSpeedMultirotor(vehicle);
+}
+
+double PX4FirmwarePlugin::guidedTakeoffSpeed(Vehicle* vehicle)
+{
+    static const QString takeoffSpeedParam(QStringLiteral("MPC_TKO_SPEED"));
+
+    if (vehicle->parameterManager()->parameterExists(FactSystem::defaultComponentId, takeoffSpeedParam)) {
+        return vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, takeoffSpeedParam)->rawValue().toDouble();
+    }
+
+    return FirmwarePlugin::guidedTakeoffSpeed(vehicle);
+}
+
+bool PX4FirmwarePlugin::setGuidedTakeoffSpeed(Vehicle* vehicle, double metersSecond)
+{
+    static const QString takeoffSpeedParam(QStringLiteral("MPC_TKO_SPEED"));
+
+    if (!qIsFinite(metersSecond)
+        || !vehicle->parameterManager()->parameterExists(FactSystem::defaultComponentId, takeoffSpeedParam)) {
+        return false;
+    }
+
+    Fact* speedFact = vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, takeoffSpeedParam);
+    if (!speedFact->metaData()) {
+        return false;
+    }
+    const double minimum = speedFact->metaData()->rawMin().toDouble();
+    const double maximum = speedFact->metaData()->rawMax().toDouble();
+    if (metersSecond < minimum || metersSecond > maximum) {
+        return false;
+    }
+
+    speedFact->setRawValue(metersSecond);
+    return true;
 }
 
 double PX4FirmwarePlugin::maximumEquivalentAirspeed(Vehicle* vehicle)

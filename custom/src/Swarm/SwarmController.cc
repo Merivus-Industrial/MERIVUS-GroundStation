@@ -100,6 +100,8 @@ QVariantMap SwarmController::executeTakeoff(const QVariantList& selectedVehicleI
     QSet<int> matchedIds;
     int delayMs = 0;
 
+    // 错峰触发各机的异步预检，避免同一链路瞬时堆积命令；结果中的 dispatchedIds
+    // 仅表示已进入预检/下发流程，最终 ACK 仍由各 Vehicle 独立处理。
     for (Vehicle* vehicle : vehicles) {
         if (!vehicle) {
             continue;
@@ -321,6 +323,8 @@ QVariantMap SwarmController::sendStartCommand(const QVariantList& selectedVehicl
     _formationMemberMask = _memberMask(_formationVehicleIds);
     _formationSessionId = QRandomGenerator::global()->bounded(1U, kMaximumSessionId + 1U);
 
+    // 编队采用 PREPARE -> COMMIT 两阶段事务；任一成员拒绝或超时都会进入 ABORT，
+    // 防止部分飞行器已经跟随而其他成员仍处于普通模式。
     _formationForwardingEnabled = true;
     _ensureFormationForwardingConnected();
     _pendingFormationCommandIds.clear();
@@ -439,6 +443,8 @@ QVariantMap SwarmController::_executeGotoInternal(const QVariantList& selectedVe
         return _result(true, tr("Goto command dispatched."), dispatchedIds, skippedIds);
     }
 
+    // 多机目标由确认时冻结的参考坐标计算。确认后即使焦点或选择发生变化，
+    // 也不能悄悄改变本次命令的目标集合和相对队形。
     double centerLat = 0.0;
     double centerLon = 0.0;
     int validCount = 0;
@@ -689,6 +695,7 @@ void SwarmController::_dispatchTemporaryMission(Vehicle* vehicle,
                                                 int delayMs,
                                                 bool replaceExisting)
 {
+    // 临时路线通过 MissionManager 上传并在完成后清理；不得把上传回调当作航线完成。
     QPointer<Vehicle> guardedVehicle(vehicle);
     QTimer::singleShot(delayMs, this, [this, guardedVehicle, coordinates, replaceExisting]() {
         if (!guardedVehicle || !guardedVehicle->missionManager()) {
@@ -972,6 +979,7 @@ bool SwarmController::_sendFormationCommand(MAV_CMD command,
                                              QList<int>* dispatchedIds,
                                              QList<int>* skippedIds)
 {
+    // sessionId 与成员掩码随每条协议命令发送，用于拒绝陈旧 ACK 和跨会话串扰。
     MultiVehicleManager* manager = qgcApp()->toolbox()->multiVehicleManager();
     if (!manager || !manager->vehicles()) {
         return false;

@@ -103,7 +103,7 @@ FlightMap {
         shiftCommittedCoords = []
     }
 
-    // 【新增】用于保存按住 Shift 时右键连续指点产生的全局地理坐标队列
+    // Shift 草稿坐标只用于预览和确认；确认前不进入 MissionManager。
     property var    shiftQueuedCoords:      []
     property var    shiftCommittedCoords:   []
     property var    shiftFrozenVehicleIds:  []
@@ -720,7 +720,7 @@ FlightMap {
     }
 
     // ============================================================================
-    // 【新增】区块 4.1：Shift 连选排队模式的轨迹连线与数字节点可视化指示器
+    // 区块 4.1：Shift 临时任务的草稿轨迹与编号节点
     // ============================================================================
 
     // 绘制排队未下发的指点航线折线轨迹
@@ -763,11 +763,11 @@ FlightMap {
     // 区块 5：全局鼠标交互与菜单 (支持框选和右键平移)
     // ============================================================================
 
-    // 【新增】根节点激活键盘事件监听，以便捕获 Shift 按键释放
+    // 根节点持有键盘焦点，确保 Shift 释放能够结束同一批草稿。
     focus: true
     Keys.onReleased: {
         if (event.key === Qt.Key_Shift) {
-            // 当用户松开 Shift 键且存在排队航点时，立刻触发批量下发
+            // 松开 Shift 只进入确认流程，确认前不上传临时任务。
             if (_root.shiftQueuedCoords.length > 0) {
                 _root.requestBatchQueuedFly()
             }
@@ -900,7 +900,7 @@ FlightMap {
 
         onPressed: {
             isDragging = false
-            _root.forceActiveFocus() // 【新增】每次点击地图强制切回键盘焦点，防被其他外部UI控件夺走事件
+            _root.forceActiveFocus() // 地图重新取得焦点，避免 Shift 释放事件遗失。
 
             if (mouse.button === Qt.LeftButton) {
                 startPoint = Qt.point(mouse.x, mouse.y)
@@ -922,8 +922,7 @@ FlightMap {
                 isDragging = true
             }
 
-            // 【新增工业重载容错】如果检测到当前未携带 Shift 修饰符但队列残留有元素 (例如切换窗口导致键盘释放未捕获)
-            // 此时通过鼠标的移动状态强行执行“下发收尾”，防止系统挂死死锁。
+            // 窗口切换可能丢失 Shift 释放事件；发现残留草稿时补进确认流程。
             if (_root.shiftQueuedCoords.length > 0 && !(mouse.modifiers & Qt.ShiftModifier)) {
                 _root.requestBatchQueuedFly()
             }
@@ -965,19 +964,19 @@ FlightMap {
             var clickCoord = _root.toCoordinate(Qt.point(mouse.x, mouse.y), false)
 
             if (mouse.button === Qt.RightButton) {
-                // 【新增修改】通过判断 Shift 键修饰符来自动分流操控行为
+                // Shift 建立可预览的临时任务草稿；普通右键保持即时指点语义。
                 if (mouse.modifiers & Qt.ShiftModifier) {
-                    // 行为 A：按住 Shift，追加目标点至航线队列，不立即下发飞控
+                    // 草稿只记录坐标，不立即下发飞控。
                     if (_root.shiftQueuedCoords.length === 0 && !_root._freezeShiftTargets()) return
                     var tempCoords = _root.shiftQueuedCoords.slice(0)
                     tempCoords.push(clickCoord)
                     _root.shiftCommittedCoords = []
-                    _root.shiftQueuedCoords = tempCoords // 重新赋值触发 QML 属性脏检查刷新前端连线和图标
+                    _root.shiftQueuedCoords = tempCoords // 重新赋值以触发 QML 绑定刷新。
 
-                    // 弹出暗金色的排队特效进行操作提示
+                    // 用排队动效区分“草稿”与已经下发的任务。
                     showMobaClickAnimation(clickCoord, "#D8B56A")
                 } else {
-                    // 行为 B：未按住 Shift，即经典的即时响应 “MOBA” 单击指点，且自动清除可能残留的队列
+                    // 普通右键执行单点指令，并清理不属于本次操作的残留草稿。
                     if (_root.shiftQueuedCoords.length > 0) _root._cancelShiftDraft()
                     executeRightClickFly(clickCoord)
                 }
@@ -1050,7 +1049,7 @@ FlightMap {
     // 区块 6：自定义 MOBA 风格右键指点飞行与编队逻辑
     // ============================================================================
 
-    // 【新增】处理 Shift 抬起时的批量航点队列下发逻辑
+    // Shift 草稿在确认时冻结目标 ID、参考位置和坐标，三者必须成组传入执行层。
     function _showSwarmCommandResult(result, actionTitle) {
         if (!result) return
 

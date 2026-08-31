@@ -10,35 +10,53 @@
     "default":          0
 },
 {
-    "name":             "rpmFirst",
+    "name":             "count",
+    "shortDesc":        "ESC Count",
+    "type":             "uint8",
+    "default":          0
+},
+{
+    "name":             "connectionType",
+    "shortDesc":        "ESC Connection Type",
+    "type":             "uint8",
+    "default":          0
+},
+{
+    "name":             "onlineFlags",
+    "shortDesc":        "ESC Online Flags",
+    "type":             "uint8",
+    "default":          0
+},
+{
+    "name":             "rpm1",
     "shortDesc":        "Rotation Per Minute",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null
 },
 {
-    "name":             "rpmSecond",
+    "name":             "rpm2",
     "shortDesc":        "Rotation Per Minute",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null
 },
 {
-    "name":             "rpmThird",
+    "name":             "rpm3",
     "shortDesc":        "Rotation Per Minute",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null
 },
 {
-    "name":             "rpmFourth",
+    "name":             "rpm4",
     "shortDesc":        "Rotation Per Minute",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null
 },
 {
-    "name":             "currentFirst",
+    "name":             "current1",
     "shortDesc":        "Current",
     "type":             "float",
     "decimalPlaces":    2,
@@ -47,7 +65,7 @@
 
 },
 {
-    "name":             "currentSecond",
+    "name":             "current2",
     "shortDesc":        "Current",
     "type":             "float",
     "decimalPlaces":    2,
@@ -55,7 +73,7 @@
     "units":            "A"
 },
 {
-    "name":             "currentThird",
+    "name":             "current3",
     "shortDesc":        "Current",
     "type":             "float",
     "decimalPlaces":    2,
@@ -63,7 +81,7 @@
     "units":            "A"
 },
 {
-    "name":             "currentFourth",
+    "name":             "current4",
     "shortDesc":        "Current",
     "type":             "float",
     "decimalPlaces":    2,
@@ -71,36 +89,68 @@
     "units":            "A"
 },
 {
-    "name":             "voltageFirst",
+    "name":             "voltage1",
     "shortDesc":        "Voltage",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null,
-    "units":            "v"
+    "units":            "V"
 },
 {
-    "name":             "voltageSecond",
+    "name":             "voltage2",
     "shortDesc":        "Voltage",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null,
-    "units":            "v"
+    "units":            "V"
 },
 {
-    "name":             "voltageThird",
+    "name":             "voltage3",
     "shortDesc":        "Voltage",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null,
-    "units":            "v"
+    "units":            "V"
 },
 {
-    "name":             "voltageFourth",
+    "name":             "voltage4",
     "shortDesc":        "Voltage",
     "type":             "float",
     "decimalPlaces":    2,
     "default":          null,
-    "units":            "v"
+    "units":            "V"
+},
+{
+    "name":             "temperature1",
+    "shortDesc":        "ESC Temperature",
+    "type":             "float",
+    "decimalPlaces":    1,
+    "default":          null,
+    "units":            "degC"
+},
+{
+    "name":             "temperature2",
+    "shortDesc":        "ESC Temperature",
+    "type":             "float",
+    "decimalPlaces":    1,
+    "default":          null,
+    "units":            "degC"
+},
+{
+    "name":             "temperature3",
+    "shortDesc":        "ESC Temperature",
+    "type":             "float",
+    "decimalPlaces":    1,
+    "default":          null,
+    "units":            "degC"
+},
+{
+    "name":             "temperature4",
+    "shortDesc":        "ESC Temperature",
+    "type":             "float",
+    "decimalPlaces":    1,
+    "default":          null,
+    "units":            "degC"
 }
 ]
 }

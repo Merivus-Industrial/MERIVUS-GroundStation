@@ -2739,6 +2739,16 @@ double Vehicle::minimumTakeoffAltitude()
     return _firmwarePlugin->minimumTakeoffAltitude(this);
 }
 
+double Vehicle::guidedTakeoffSpeed()
+{
+    return _firmwarePlugin->guidedTakeoffSpeed(this);
+}
+
+bool Vehicle::setGuidedTakeoffSpeed(double metersSecond)
+{
+    return _firmwarePlugin->setGuidedTakeoffSpeed(this, metersSecond);
+}
+
 double Vehicle::maximumHorizontalSpeedMultirotor()
 {
     return _firmwarePlugin->maximumHorizontalSpeedMultirotor(this);

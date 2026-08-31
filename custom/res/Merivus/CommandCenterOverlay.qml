@@ -1,7 +1,6 @@
 import QtQuick          2.12
 import QtQuick.Controls 2.4
 import QtQuick.Layouts  1.11
-
 import QGroundControl               1.0
 import QGroundControl.Controls      1.0
 import QGroundControl.FlightDisplay 1.0
@@ -11,6 +10,10 @@ import QGroundControl.ScreenTools   1.0
 
 Item {
     id: root
+
+    // 本覆盖层是人工控制入口：只把操作者当前选择交给 Guided/Swarm 确认流程，
+    // 不消费 AI proposal，也不把界面显示状态当作飞控 ACK。
+    GpsStatus { id: gpsStatus }
 
     property var selectedIds: []
     property var vehicles: QGroundControl.multiVehicleManager.vehicles
@@ -57,7 +60,7 @@ Item {
     property int rightPanelVehicleId: -1
     property real altitudeCommandMeters: 10
     property real speedCommandMetersSecond: 5
-    property real climbCommandMetersSecond: 1.5
+    property real takeoffSpeedCommandMetersSecond: 1.5
     property date now: new Date()
 
     visible: width > 900 && height > 560
@@ -142,6 +145,10 @@ Item {
 
     function metricText(kind, decimals, suffix) { return metricTextFor(focusVehicle, kind, decimals, suffix) }
 
+    function showGpsDetails(vehicle) {
+        mainWindow.showMessageDialog(tr("GPS / RTK 状态"), gpsStatus.details(vehicle, QGroundControl.gpsRtk))
+    }
+
 function elapsedText(fact) {
         if (!factHasValue(fact)) return "--"
         var seconds = Number(fact.rawValue)
@@ -209,15 +216,40 @@ function escFact(vehicle, prefix, motorIndex) {
         return !!(vehicle && vehicle.escStatus && vehicle.escStatus.received)
     }
 
+    function escMotorOnline(vehicle, motorIndex) {
+        if (!escHasData(vehicle, motorIndex)) return false
+        if (!vehicle.escStatus.infoReceived) return true
+        return (Number(vehicle.escStatus.onlineFlags.rawValue) & (1 << motorIndex)) !== 0
+    }
+
+    function escConnectionText(vehicle) {
+        if (!vehicle || !vehicle.escStatus || !vehicle.escStatus.infoReceived) return tr("未知")
+        var type = Number(vehicle.escStatus.connectionType.rawValue)
+        return type === 1 ? tr("串行遥测")
+             : type === 4 ? tr("CAN")
+             : type === 5 ? tr("DShot 独立遥测")
+             : type === 0 ? tr("PWM/PPM")
+             : tr("类型 %1").arg(type)
+    }
+
+    function escStatusText(vehicle) {
+        if (!vehicle) return tr("无数据源")
+        if (!vehicle.escStatus || !vehicle.escStatus.received) return tr("未收到遥测")
+        return tr("遥测在线")
+    }
+
     function escTipText(motorIndex) {
         var label = tr("电机 M%1").arg(motorIndex + 1)
         if (!focusVehicle) return label + "\n" + tr("等待飞行器接入后显示 ESC 遥测。")
         if (!escHasData(focusVehicle, motorIndex)) return label + "\n" +
-                tr("已请求 ESC 遥测，飞控暂未返回数据。请确认已启用双向 DShot 或 CAN ESC 遥测。")
+                tr("地面站已请求 ESC_STATUS/ESC_INFO，但飞控没有数据可发。DShot 电调请确认遥测线已接入飞控串口并配置 DSHOT_TEL_CFG；CAN 电调请确认 CAN 节点在线。")
         return label + "\n" +
+               tr("状态：%1").arg(escMotorOnline(focusVehicle, motorIndex) ? tr("在线") : tr("离线")) + "\n" +
+               tr("接口：%1").arg(escConnectionText(focusVehicle)) + "\n" +
                tr("转速：%1").arg(escNumber(focusVehicle, "rpm", motorIndex, 0, "rpm")) + "\n" +
                tr("电流：%1").arg(escNumber(focusVehicle, "current", motorIndex, 1, "A")) + "\n" +
-               tr("电压：%1").arg(escNumber(focusVehicle, "voltage", motorIndex, 1, "V"))
+               tr("电压：%1").arg(escNumber(focusVehicle, "voltage", motorIndex, 1, "V")) + "\n" +
+               tr("电调温度：%1").arg(escNumber(focusVehicle, "temperature", motorIndex, 1, "°C"))
     }
 
     function linkStateText(vehicle) {
@@ -228,10 +260,14 @@ function escFact(vehicle, prefix, motorIndex) {
 
     function runGuidedAction(actionId, actionData) {
         if (!guidedController || actionId < 0) return
+        if (actionId === guidedController.actionTakeoff) {
+            guidedController.defaultTakeoffAltitudeMeters = altitudeCommandMeters
+        }
         guidedController.closeAll()
         guidedController.confirmAction(actionId, actionData)
     }
 
+    // 确认框打开后仍可能继续选择车辆，因此执行数据必须使用当时的不可变副本。
     function selectedIdsSnapshot() { return selectedIds ? selectedIds.slice(0) : [] }
 
     function hasValidFormationSelection() {
@@ -263,20 +299,20 @@ function escFact(vehicle, prefix, motorIndex) {
     function controlValueText(kind) {
         if (kind === "altitude") return altitudeCommandMeters.toFixed(1)
         if (kind === "speed") return speedCommandMetersSecond.toFixed(1)
-        if (kind === "climb") return climbCommandMetersSecond.toFixed(1)
+        if (kind === "takeoffSpeed") return takeoffSpeedCommandMetersSecond.toFixed(1)
         return "0.0"
     }
 
     function setControlValue(kind, value) {
         if (kind === "altitude") altitudeCommandMeters = numericInput(value, altitudeCommandMeters, -100, 100)
         else if (kind === "speed") speedCommandMetersSecond = numericInput(value, speedCommandMetersSecond, 0.1, 40)
-        else if (kind === "climb") climbCommandMetersSecond = numericInput(value, climbCommandMetersSecond, 0.1, 15)
+        else if (kind === "takeoffSpeed") takeoffSpeedCommandMetersSecond = numericInput(value, takeoffSpeedCommandMetersSecond, 1, 5)
     }
 
     function adjustControlValue(kind, delta) {
         if (kind === "altitude") altitudeCommandMeters = numericInput(altitudeCommandMeters + delta, altitudeCommandMeters, -100, 100)
         else if (kind === "speed") speedCommandMetersSecond = numericInput(speedCommandMetersSecond + delta, speedCommandMetersSecond, 0.1, 40)
-        else if (kind === "climb") climbCommandMetersSecond = numericInput(climbCommandMetersSecond + delta, climbCommandMetersSecond, 0.1, 15)
+        else if (kind === "takeoffSpeed") takeoffSpeedCommandMetersSecond = numericInput(takeoffSpeedCommandMetersSecond + delta, takeoffSpeedCommandMetersSecond, 1, 5)
     }
 
     function canSendFocusCommand() {
@@ -344,6 +380,7 @@ function escFact(vehicle, prefix, motorIndex) {
     }
 
     function applyControlCommand(kind) {
+        // 这些是显式人工参数/Guided 操作，不属于 AI 建议链路。
         if (!canSendFocusCommand()) {
             mainWindow.showMessageDialog(tr("指令未发送"), tr("当前没有可用的焦点飞行器，或链路已断开。"))
             return
@@ -353,9 +390,19 @@ function escFact(vehicle, prefix, motorIndex) {
         } else if (kind === "speed") {
             if (focusVehicle.fixedWing || focusVehicle.vtolInFwdFlight) focusVehicle.guidedModeChangeEquivalentAirspeedMetersSecond(speedCommandMetersSecond)
             else focusVehicle.guidedModeChangeGroundSpeedMetersSecond(speedCommandMetersSecond)
-        } else if (kind === "climb") {
-            focusVehicle.sendCommand(1, 178, true, 2, climbCommandMetersSecond, -1, 0, 0, 0, 0)
+        } else if (kind === "takeoffSpeed") {
+            if (!focusVehicle.setGuidedTakeoffSpeed(takeoffSpeedCommandMetersSecond)) {
+                mainWindow.showMessageDialog(tr("参数未下发"),
+                                             tr("当前飞行器未提供 MPC_TKO_SPEED，或输入值超出飞控允许范围。"))
+            }
         }
+    }
+
+    function configuredTakeoffSpeedText(vehicle) {
+        var refreshTick = now
+        if (!vehicle) return "--"
+        var value = Number(vehicle.guidedTakeoffSpeed())
+        return isNaN(value) ? "--" : value.toFixed(1) + " m/s"
     }
 
     Rectangle {
@@ -591,12 +638,12 @@ function escFact(vehicle, prefix, motorIndex) {
                 rowSpacing: 5
                 Repeater {
                     model: [
-                        { label: tr("\u9ad8\u5ea6"), kind: "altitude", adjustable: true, value: root.metricText("altitude", 1, "m"), step: 1.0, unit: "m", limitTop: 100, limitBottom: -100, tip: tr("高度增量命令：正值上升、负值下降，默认 10 m") },
+                        { label: tr("\u9ad8\u5ea6"), kind: "altitude", adjustable: true, value: root.metricText("altitude", 1, "m"), step: 1.0, unit: "m", limitTop: 100, limitBottom: -100, tip: tr("飞行中为相对高度增量；点击起飞时同时作为默认起飞高度") },
                         { label: tr("\u5730\u901f"), kind: "speed", adjustable: true, value: root.metricText("speed", 1, "m/s"), step: 0.5, unit: "m/s", limitTop: 40, limitBottom: 0.1, tip: tr("目标速度命令：默认 5 m/s") },
-                        { label: tr("\u722c\u5347"), kind: "climb", adjustable: true, value: root.metricText("climb", 1, "m/s"), step: 0.2, unit: "m/s", limitTop: 15, limitBottom: 0.1, tip: tr("目标爬升速度") },
+                        { label: tr("起飞速度"), kind: "takeoffSpeed", adjustable: true, value: root.configuredTakeoffSpeedText(root.focusVehicle), step: 0.1, unit: "m/s", limitTop: 5, limitBottom: 1, tip: tr("写入 PX4 参数 MPC_TKO_SPEED；MAV_CMD_NAV_TAKEOFF 本身不携带速度") },
                         { label: tr("\u822a\u5411"), kind: "heading", adjustable: false, value: root.metricText("heading", 0, "\u00b0"), tip: tr("机头朝向（0/360 为北向）") },
                         { label: tr("\u7535\u6c60"), kind: "battery", adjustable: false, value: root.metricText("battery", 0, "%"), tip: tr("主电池剩余百分比") },
-                        { label: "GPS", kind: "gps", adjustable: false, value: root.metricText("gps", 0, tr("\u661f")), tip: tr("GPS 可用卫星数量") }
+                        { label: "GPS/RTK", kind: "gps", adjustable: false, value: gpsStatus.summary(root.focusVehicle), tip: tr("点击查看定位类型、精度、速度、高度、GNSS 航向和双接收机信息") }
                     ]
                     Rectangle {
                         Layout.fillWidth: true
@@ -683,7 +730,9 @@ function escFact(vehicle, prefix, motorIndex) {
                             id: paramTipMouse
                             anchors.fill: parent
                             hoverEnabled: true
-                            acceptedButtons: Qt.NoButton
+                            acceptedButtons: modelData.kind === "gps" ? Qt.LeftButton : Qt.NoButton
+                            cursorShape: modelData.kind === "gps" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (modelData.kind === "gps") root.showGpsDetails(root.focusVehicle)
                         }
                         MerivusToolTip {
                             visible: paramTipMouse.containsMouse
@@ -707,8 +756,8 @@ function escFact(vehicle, prefix, motorIndex) {
                     font.pointSize: root.fontPointSize(12)
                 }
                 QGCLabel {
-                    text: root.focusVehicle ? tr("\u5df2\u63a5\u5165") : tr("\u65e0\u6570\u636e\u6e90")
-                    color: root.focusVehicle ? root.nominal : root.muted
+                    text: root.escStatusText(root.focusVehicle)
+                    color: root.focusVehicle && root.escHasData(root.focusVehicle, 0) ? root.nominal : root.muted
                     font.pointSize: root.fontPointSize(11)
                 }
             }
@@ -730,7 +779,7 @@ function escFact(vehicle, prefix, motorIndex) {
                         Layout.preferredHeight: 56
                         radius: 5
                         color: escMouse.containsMouse ? root.raisedColor : qgcPal.windowShade
-                        border.color: root.escHasData(root.focusVehicle, modelData.index) ? root.nominal : (escMouse.containsMouse ? root.accent : root.mutedLine)
+                        border.color: root.escMotorOnline(root.focusVehicle, modelData.index) ? root.nominal : (escMouse.containsMouse ? root.accent : root.mutedLine)
                         Column {
                             anchors.fill: parent
                             anchors.margins: 5
@@ -739,7 +788,7 @@ function escFact(vehicle, prefix, motorIndex) {
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 spacing: 3
                                 QGCLabel { text: modelData.label; color: qgcPal.text; font.bold: true; font.pointSize: root.fontPointSize(11) }
-                                QGCLabel { text: root.escHasData(root.focusVehicle, modelData.index) ? "\u25cf" : "\u25cb"; color: root.escHasData(root.focusVehicle, modelData.index) ? root.nominal : root.muted; font.pointSize: root.fontPointSize(9) }
+                                QGCLabel { text: root.escMotorOnline(root.focusVehicle, modelData.index) ? "\u25cf" : "\u25cb"; color: root.escMotorOnline(root.focusVehicle, modelData.index) ? root.nominal : root.muted; font.pointSize: root.fontPointSize(9) }
                             }
                             Row {
                                 anchors.horizontalCenter: parent.horizontalCenter

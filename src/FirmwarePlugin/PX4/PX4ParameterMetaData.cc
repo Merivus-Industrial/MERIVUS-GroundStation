@@ -45,7 +45,7 @@ PX4ParameterMetaData::PX4ParameterMetaData(void)
         add(QStringLiteral("COM_RCL_EXCEPT"), QStringLiteral("手动控制丢失例外项"), QStringLiteral("设置在哪些导航状态下忽略遥控链路丢失处理。"));
         add(QStringLiteral("COM_SPOOLUP_TIME"), QStringLiteral("电机启动等待时间"), QStringLiteral("从解锁到允许继续执行导航动作之间的强制等待时间。"));
         add(QStringLiteral("DSHOT_3D_ENABLE"), QStringLiteral("启用 DShot 3D 模式"), QStringLiteral("使用 DShot 和兼容混控器时允许电机双向旋转。"));
-        add(QStringLiteral("DSHOT_BIDIR_EN"), QStringLiteral("启用双向 DShot"), QStringLiteral("启用双向 DShot，从兼容电调接收转速遥测。需要飞控输出、ESC 固件和接线均支持该功能。"));
+        add(QStringLiteral("DSHOT_TEL_CFG"), QStringLiteral("DShot 遥测串口"), QStringLiteral("选择连接电调遥测信号线的飞控串口。只有电调、接线和所选串口均支持时，飞控才会发布转速、电流、电压和温度。"));
         add(QStringLiteral("DSHOT_MIN"), QStringLiteral("DShot 最小电机输出"), QStringLiteral("设置 DShot 的最小电机输出百分比。"));
         add(QStringLiteral("EV_TSK_RC_LOSS"), QStringLiteral("遥控链路丢失告警"), QStringLiteral("控制任务事件中的遥控链路丢失告警。"));
         add(QStringLiteral("FD_ACT_EN"), QStringLiteral("启用执行器故障检查"), QStringLiteral("启用执行器故障检测。"));

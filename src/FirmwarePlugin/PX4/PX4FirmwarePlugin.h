@@ -58,6 +58,8 @@ public:
     void                guidedModeRTL                   (Vehicle* vehicle, bool smartRTL) override;
     void                guidedModeLand                  (Vehicle* vehicle) override;
     void                guidedModeTakeoff               (Vehicle* vehicle, double takeoffAltRel) override;
+    double              guidedTakeoffSpeed              (Vehicle* vehicle) override;
+    bool                setGuidedTakeoffSpeed           (Vehicle* vehicle, double metersSecond) override;
     double              maximumHorizontalSpeedMultirotor(Vehicle* vehicle) override;
     double              maximumEquivalentAirspeed(Vehicle* vehicle) override;
     double              minimumEquivalentAirspeed(Vehicle* vehicle) override;
@@ -156,4 +158,5 @@ public:
     quint64 takeoffHealthReportSequence{0};
     double pendingTakeoffAltitudeRelative{0.0};
     bool prearmCheckAcknowledged{false};
+    bool escStatusIntervalPending{false};
 };

@@ -33,11 +33,79 @@
     "decimalPlaces":    1
 },
 {
+    "name":             "altitudeMSL",
+    "shortDesc":        "GPS Altitude MSL",
+    "type":             "double",
+    "decimalPlaces":    2,
+    "units":            "m"
+},
+{
+    "name":             "altitudeEllipsoid",
+    "shortDesc":        "GPS Ellipsoid Altitude",
+    "type":             "double",
+    "decimalPlaces":    2,
+    "units":            "m"
+},
+{
+    "name":             "groundSpeed",
+    "shortDesc":        "GPS Ground Speed",
+    "type":             "double",
+    "decimalPlaces":    2,
+    "units":            "m/s"
+},
+{
     "name":             "courseOverGround",
     "shortDesc": "Course Over Ground",
     "type":             "double",
     "decimalPlaces":    1,
     "units":            "deg"
+},
+{
+    "name":             "horizontalAccuracy",
+    "shortDesc":        "Horizontal Position Accuracy",
+    "type":             "double",
+    "decimalPlaces":    3,
+    "units":            "m"
+},
+{
+    "name":             "verticalAccuracy",
+    "shortDesc":        "Vertical Position Accuracy",
+    "type":             "double",
+    "decimalPlaces":    3,
+    "units":            "m"
+},
+{
+    "name":             "speedAccuracy",
+    "shortDesc":        "Speed Accuracy",
+    "type":             "double",
+    "decimalPlaces":    3,
+    "units":            "m/s"
+},
+{
+    "name":             "headingAccuracy",
+    "shortDesc":        "Heading Accuracy",
+    "type":             "double",
+    "decimalPlaces":    2,
+    "units":            "deg"
+},
+{
+    "name":             "yaw",
+    "shortDesc":        "GPS Yaw",
+    "type":             "double",
+    "decimalPlaces":    2,
+    "units":            "deg"
+},
+{
+    "name":             "differentialAge",
+    "shortDesc":        "Differential Correction Age",
+    "type":             "double",
+    "decimalPlaces":    1,
+    "units":            "s"
+},
+{
+    "name":             "differentialCount",
+    "shortDesc":        "Differential Satellite Count",
+    "type":             "uint8"
 },
 {
     "name":             "lock",

@@ -11,6 +11,9 @@
 #include "Vehicle.h"
 
 const char* VehicleEscStatusFactGroup::_indexFactName =                             "index";
+const char* VehicleEscStatusFactGroup::_countFactName =                             "count";
+const char* VehicleEscStatusFactGroup::_connectionTypeFactName =                    "connectionType";
+const char* VehicleEscStatusFactGroup::_onlineFlagsFactName =                       "onlineFlags";
 
 const char* VehicleEscStatusFactGroup::_rpmFirstFactName =                          "rpm1";
 const char* VehicleEscStatusFactGroup::_rpmSecondFactName =                         "rpm2";
@@ -27,9 +30,17 @@ const char* VehicleEscStatusFactGroup::_voltageSecondFactName =                 
 const char* VehicleEscStatusFactGroup::_voltageThirdFactName =                      "voltage3";
 const char* VehicleEscStatusFactGroup::_voltageFourthFactName =                     "voltage4";
 
+const char* VehicleEscStatusFactGroup::_temperatureFirstFactName =                  "temperature1";
+const char* VehicleEscStatusFactGroup::_temperatureSecondFactName =                 "temperature2";
+const char* VehicleEscStatusFactGroup::_temperatureThirdFactName =                  "temperature3";
+const char* VehicleEscStatusFactGroup::_temperatureFourthFactName =                 "temperature4";
+
 VehicleEscStatusFactGroup::VehicleEscStatusFactGroup(QObject* parent)
     : FactGroup                         (1000, ":/json/Vehicle/EscStatusFactGroup.json", parent)
     , _indexFact                        (0, _indexFactName,                         FactMetaData::valueTypeUint8)
+    , _countFact                        (0, _countFactName,                         FactMetaData::valueTypeUint8)
+    , _connectionTypeFact               (0, _connectionTypeFactName,                FactMetaData::valueTypeUint8)
+    , _onlineFlagsFact                  (0, _onlineFlagsFactName,                    FactMetaData::valueTypeUint8)
 
     , _rpmFirstFact                     (0, _rpmFirstFactName,                      FactMetaData::valueTypeFloat)
     , _rpmSecondFact                    (0, _rpmSecondFactName,                     FactMetaData::valueTypeFloat)
@@ -45,8 +56,16 @@ VehicleEscStatusFactGroup::VehicleEscStatusFactGroup(QObject* parent)
     , _voltageSecondFact                (0, _voltageSecondFactName,                 FactMetaData::valueTypeFloat)
     , _voltageThirdFact                 (0, _voltageThirdFactName,                  FactMetaData::valueTypeFloat)
     , _voltageFourthFact                (0, _voltageFourthFactName,                 FactMetaData::valueTypeFloat)
+
+    , _temperatureFirstFact             (0, _temperatureFirstFactName,              FactMetaData::valueTypeFloat)
+    , _temperatureSecondFact            (0, _temperatureSecondFactName,             FactMetaData::valueTypeFloat)
+    , _temperatureThirdFact             (0, _temperatureThirdFactName,              FactMetaData::valueTypeFloat)
+    , _temperatureFourthFact            (0, _temperatureFourthFactName,             FactMetaData::valueTypeFloat)
 {
     _addFact(&_indexFact,                       _indexFactName);
+    _addFact(&_countFact,                       _countFactName);
+    _addFact(&_connectionTypeFact,              _connectionTypeFactName);
+    _addFact(&_onlineFlagsFact,                 _onlineFlagsFactName);
 
     _addFact(&_rpmFirstFact,                    _rpmFirstFactName);
     _addFact(&_rpmSecondFact,                   _rpmSecondFactName);
@@ -62,10 +81,38 @@ VehicleEscStatusFactGroup::VehicleEscStatusFactGroup(QObject* parent)
     _addFact(&_voltageSecondFact,               _voltageSecondFactName);
     _addFact(&_voltageThirdFact,                _voltageThirdFactName);
     _addFact(&_voltageFourthFact,               _voltageFourthFactName);
+
+    _addFact(&_temperatureFirstFact,            _temperatureFirstFactName);
+    _addFact(&_temperatureSecondFact,           _temperatureSecondFactName);
+    _addFact(&_temperatureThirdFact,            _temperatureThirdFactName);
+    _addFact(&_temperatureFourthFact,           _temperatureFourthFactName);
 }
 
 void VehicleEscStatusFactGroup::handleMessage(Vehicle* /* vehicle */, mavlink_message_t& message)
 {
+    if (message.msgid == MAVLINK_MSG_ID_ESC_INFO) {
+        mavlink_esc_info_t content;
+        mavlink_msg_esc_info_decode(&message, &content);
+
+        if (content.index != 0) {
+            return;
+        }
+
+        if (!_infoReceived) {
+            _infoReceived = true;
+            emit infoReceivedChanged();
+        }
+
+        count()->setRawValue(content.count);
+        connectionType()->setRawValue(content.connection_type);
+        onlineFlags()->setRawValue(content.info);
+        temperatureFirst()->setRawValue(content.temperature[0] == INT16_MAX ? qQNaN() : content.temperature[0] / 100.f);
+        temperatureSecond()->setRawValue(content.temperature[1] == INT16_MAX ? qQNaN() : content.temperature[1] / 100.f);
+        temperatureThird()->setRawValue(content.temperature[2] == INT16_MAX ? qQNaN() : content.temperature[2] / 100.f);
+        temperatureFourth()->setRawValue(content.temperature[3] == INT16_MAX ? qQNaN() : content.temperature[3] / 100.f);
+        return;
+    }
+
     if (message.msgid != MAVLINK_MSG_ID_ESC_STATUS) {
         return;
     }
