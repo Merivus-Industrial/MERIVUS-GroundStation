@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           submodules: recursive
           fetch-depth: 0
@@ -59,7 +59,7 @@ jobs:
         run: echo "timestamp=$(date --utc +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
 
       - name: ccache cache files
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path:         ~/.ccache
           key:          ${{ runner.os }}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
@@ -91,7 +91,7 @@ jobs:
         run:                ${SOURCE_DIR}/deploy/create_linux_appimage.sh ${SOURCE_DIR} ./staging ./package;
 
       - name: Save artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
