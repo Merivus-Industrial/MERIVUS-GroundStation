@@ -149,6 +149,13 @@ public:
     /// @return The minimum takeoff altitude (relative) for guided takeoff.
     virtual double minimumTakeoffAltitude(Vehicle* /*vehicle*/) { return 10; }
 
+    /// @return The configured guided takeoff climb speed, or NAN when the firmware does not expose one.
+    virtual double guidedTakeoffSpeed(Vehicle* /*vehicle*/) { return NAN; }
+
+    /// Updates the firmware-specific guided takeoff climb speed.
+    /// @return true when the parameter write was queued.
+    virtual bool setGuidedTakeoffSpeed(Vehicle* /*vehicle*/, double /*metersSecond*/) { return false; }
+
     /// @return The maximum horizontal groundspeed for a multirotor.
     virtual double maximumHorizontalSpeedMultirotor(Vehicle* /*vehicle*/) { return NAN; }
 

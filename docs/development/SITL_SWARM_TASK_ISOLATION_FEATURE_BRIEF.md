@@ -23,7 +23,7 @@ UAV-1 为固定主机，UAV-2～UAV-6 为可选从机；同一套协议支持包
 - QML: `GuidedActionsController.qml`、`CommandCenterOverlay.qml`、`FlyViewMap.qml`、`PlanView.qml` 负责确认、选择冻结、任务显示和禁止跨机继承。
 - MAVLink: `MAV_CMD_USER_1/2/3/4` 分别承载 PREPARE、COMMIT、RELEASE、ABORT。协议版本为 `2`，参数包含成员位图、主机 ID 和 24 位会话 ID。
 - Position lease: 主机 `GPS_RAW_INT` 只作为位置来源；地面站向本次所有成员发送 `FOLLOW_TARGET`，其 `custom_state` 绑定会话 ID，并校验最初 PREPARE 的 MAVLink source。
-- PX4: 配套源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`。`swarm_node` 负责预检、setpoint 预热、Offboard、解锁、起飞、Ready 屏障、Control，以及所有成员 3 秒租约超时转 AUTO_LOITER。
+- PX4: 配套源码位于 `E:\MERIVUS\FirmwarePX4`。`swarm_node` 负责预检、setpoint 预热、Offboard、解锁、起飞、Ready 屏障、Control，以及所有成员 3 秒租约超时转 AUTO_LOITER。
 - Cloud/AI: 不接入。
 
 ## Safety impact

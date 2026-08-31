@@ -20,16 +20,39 @@
 #include "QGCFileDownload.h"
 #include "SettingsManager.h"
 #include "PlanViewSettings.h"
+#include "HealthAndArmingCheckReport.h"
+#include "VehicleGPSFactGroup.h"
 
 #include <QDebug>
 
 #include "px4_custom_mode.h"
 
+namespace {
+
+constexpr int kTakeoffHealthCheckTimeoutMs = 3000;
+
+bool isTakeoffHealthRefreshStage(PX4TakeoffHealthCheckStage stage)
+{
+    return stage == PX4TakeoffHealthCheckStage::RefreshBeforeTakeoff
+        || stage == PX4TakeoffHealthCheckStage::RefreshBeforeArm
+        || stage == PX4TakeoffHealthCheckStage::RefreshAfterTakeoffRejection
+        || stage == PX4TakeoffHealthCheckStage::RefreshAfterArmRejection;
+}
+
+bool isRejectedCommandRefreshStage(PX4TakeoffHealthCheckStage stage)
+{
+    return stage == PX4TakeoffHealthCheckStage::RefreshAfterTakeoffRejection
+        || stage == PX4TakeoffHealthCheckStage::RefreshAfterArmRejection;
+}
+
+}
+
 PX4FirmwarePluginInstanceData::PX4FirmwarePluginInstanceData(QObject* parent)
     : QObject(parent)
     , versionNotified(false)
+    , takeoffHealthCheckTimer(this)
 {
-
+    takeoffHealthCheckTimer.setSingleShot(true);
 }
 
 PX4FirmwarePlugin::PX4FirmwarePlugin()
@@ -233,11 +256,26 @@ bool PX4FirmwarePlugin::isCapable(const Vehicle *vehicle, FirmwareCapabilities c
 
 void PX4FirmwarePlugin::initializeVehicle(Vehicle* vehicle)
 {
-    vehicle->setFirmwarePluginInstanceData(new PX4FirmwarePluginInstanceData);
+    auto* instanceData = new PX4FirmwarePluginInstanceData;
+    vehicle->setFirmwarePluginInstanceData(instanceData);
 
-    // ESC_STATUS is not part of every default PX4 stream. Request it after the
-    // initial handshake so TCP and serial links expose the same ESC telemetry.
+    connect(vehicle, &Vehicle::mavCommandResult,
+            this, &PX4FirmwarePlugin::_mavCommandResult,
+            Qt::UniqueConnection);
+    connect(vehicle->healthAndArmingCheckReport(), &HealthAndArmingCheckReport::updated,
+            vehicle, [this, vehicle]() { _takeoffHealthReportUpdated(vehicle); });
+    connect(&instanceData->takeoffHealthCheckTimer, &QTimer::timeout,
+            vehicle, [this, vehicle]() { _takeoffHealthCheckTimedOut(vehicle); });
+
+    // ESC messages are not part of every default PX4 stream. Request both the
+    // fast measurements and the slow health data after the initial handshake.
     const auto requestEscTelemetry = [vehicle]() {
+        auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+        if (!instanceData) {
+            return;
+        }
+
+        instanceData->escStatusIntervalPending = true;
         vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
                                 MAV_CMD_SET_MESSAGE_INTERVAL,
                                 false /* showError */,
@@ -388,7 +426,6 @@ void PX4FirmwarePlugin::_mavCommandResult(int vehicleId, int component, int comm
 {
     Q_UNUSED(vehicleId);
     Q_UNUSED(component);
-    Q_UNUSED(noReponseFromVehicle);
 
     auto* vehicle = qobject_cast<Vehicle*>(sender());
     if (!vehicle) {
@@ -396,36 +433,265 @@ void PX4FirmwarePlugin::_mavCommandResult(int vehicleId, int component, int comm
         return;
     }
 
-    if (command == MAV_CMD_NAV_TAKEOFF && result == MAV_RESULT_ACCEPTED) {
-        // Now that we are in takeoff mode we can arm the vehicle which will cause it to takeoff.
-        // We specifically don't retry arming if it fails. This way we don't fight with the user if
-        // They are trying to disarm.
-        disconnect(vehicle, &Vehicle::mavCommandResult, this, &PX4FirmwarePlugin::_mavCommandResult);
-        if (!vehicle->armed()) {
-            vehicle->setArmedShowError(true);
+    auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+    if (!instanceData) {
+        return;
+    }
+
+    if (command == MAV_CMD_SET_MESSAGE_INTERVAL && instanceData->escStatusIntervalPending) {
+        // Vehicle serializes commands by command id, so request ESC_INFO only
+        // after the ESC_STATUS interval command has completed.
+        instanceData->escStatusIntervalPending = false;
+        vehicle->sendMavCommand(MAV_COMP_ID_AUTOPILOT1,
+                                MAV_CMD_SET_MESSAGE_INTERVAL,
+                                false /* showError */,
+                                MAVLINK_MSG_ID_ESC_INFO,
+                                1000000.0f /* 1 Hz, microseconds */);
+        return;
+    }
+
+    if (command == MAV_CMD_RUN_PREARM_CHECKS
+        && isTakeoffHealthRefreshStage(instanceData->takeoffHealthCheckStage)) {
+        if (noReponseFromVehicle || result != MAV_RESULT_ACCEPTED) {
+            instanceData->takeoffHealthCheckTimer.stop();
+            instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::Idle;
+            _showTakeoffHealthFailure(vehicle,
+                                      tr("No current preflight check result was received. Check the vehicle link and try again."));
+            return;
         }
+
+        instanceData->prearmCheckAcknowledged = true;
+        if (vehicle->healthAndArmingCheckReport()->updateSequence()
+            <= instanceData->takeoffHealthReportSequence) {
+            instanceData->takeoffHealthCheckTimer.start(kTakeoffHealthCheckTimeoutMs);
+        }
+        _tryCompleteTakeoffHealthCheck(vehicle);
+        return;
+    }
+
+    if (command == MAV_CMD_NAV_TAKEOFF
+        && instanceData->takeoffHealthCheckStage == PX4TakeoffHealthCheckStage::WaitingForTakeoffAcceptance) {
+        if (result == MAV_RESULT_ACCEPTED && !noReponseFromVehicle && !vehicle->armed()) {
+            _requestTakeoffHealthCheck(vehicle, PX4TakeoffHealthCheckStage::RefreshBeforeArm);
+        } else if (result == MAV_RESULT_ACCEPTED && !noReponseFromVehicle) {
+            instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::Idle;
+        } else {
+            _requestTakeoffHealthCheck(vehicle, PX4TakeoffHealthCheckStage::RefreshAfterTakeoffRejection);
+        }
+        return;
+    }
+
+    if (command == MAV_CMD_COMPONENT_ARM_DISARM
+        && instanceData->takeoffHealthCheckStage == PX4TakeoffHealthCheckStage::WaitingForArmAcceptance) {
+        if (result == MAV_RESULT_ACCEPTED && !noReponseFromVehicle) {
+            instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::Idle;
+        } else {
+            _requestTakeoffHealthCheck(vehicle, PX4TakeoffHealthCheckStage::RefreshAfterArmRejection);
+        }
+        return;
     }
 }
 
 void PX4FirmwarePlugin::guidedModeTakeoff(Vehicle* vehicle, double takeoffAltRel)
 {
-    double vehicleAltitudeAMSL = vehicle->altitudeAMSL()->rawValue().toDouble();
-    if (qIsNaN(vehicleAltitudeAMSL)) {
-        qgcApp()->showAppMessage(tr("Unable to takeoff, vehicle position not known."));
+    // 每架飞机独立运行“刷新预检 -> TAKEOFF ACK -> 再刷新 -> ARM ACK”状态机；
+    // 不能复用旧健康报告，也不能把 TAKEOFF 已接受等同于自动解锁成功。
+    auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+    if (!instanceData || instanceData->takeoffHealthCheckStage != PX4TakeoffHealthCheckStage::Idle) {
         return;
     }
 
-    double takeoffAltAMSL = takeoffAltRel + vehicleAltitudeAMSL;
+    const double vehicleAltitudeAMSL = vehicle->altitudeAMSL()->rawValue().toDouble();
+    if (qIsNaN(vehicleAltitudeAMSL)) {
+        _showTakeoffHealthFailure(vehicle, tr("No valid local position/GPS accuracy check failed."));
+        return;
+    }
 
-    connect(vehicle, &Vehicle::mavCommandResult, this, &PX4FirmwarePlugin::_mavCommandResult);
+    _requestTakeoffHealthCheck(vehicle, PX4TakeoffHealthCheckStage::RefreshBeforeTakeoff, takeoffAltRel);
+}
+
+void PX4FirmwarePlugin::_requestTakeoffHealthCheck(Vehicle* vehicle,
+                                                   PX4TakeoffHealthCheckStage stage,
+                                                   double takeoffAltRel)
+{
+    auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+    if (!instanceData) {
+        return;
+    }
+
+    HealthAndArmingCheckReport* report = vehicle->healthAndArmingCheckReport();
+    if (!report->supported()) {
+        instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::Idle;
+        _showTakeoffHealthFailure(vehicle, _basicTakeoffHealthFailure(vehicle));
+        return;
+    }
+
+    instanceData->takeoffHealthCheckStage = stage;
+    instanceData->takeoffHealthReportSequence = report->updateSequence();
+    instanceData->pendingTakeoffAltitudeRelative = takeoffAltRel;
+    instanceData->prearmCheckAcknowledged = false;
+
+    vehicle->sendMavCommand(vehicle->defaultComponentId(),
+                            MAV_CMD_RUN_PREARM_CHECKS,
+                            false);
+}
+
+void PX4FirmwarePlugin::_takeoffHealthReportUpdated(Vehicle* vehicle)
+{
+    _tryCompleteTakeoffHealthCheck(vehicle);
+}
+
+void PX4FirmwarePlugin::_tryCompleteTakeoffHealthCheck(Vehicle* vehicle)
+{
+    auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+    if (!instanceData
+        || !isTakeoffHealthRefreshStage(instanceData->takeoffHealthCheckStage)
+        || !instanceData->prearmCheckAcknowledged
+        || vehicle->healthAndArmingCheckReport()->updateSequence() <= instanceData->takeoffHealthReportSequence) {
+        return;
+    }
+
+    // 只有预检命令 ACK 和更新序号更大的健康报告同时到达，才允许推进状态机。
+    const PX4TakeoffHealthCheckStage completedStage = instanceData->takeoffHealthCheckStage;
+    const double takeoffAltRel = instanceData->pendingTakeoffAltitudeRelative;
+    instanceData->takeoffHealthCheckTimer.stop();
+    instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::Idle;
+
+    HealthAndArmingCheckReport* report = vehicle->healthAndArmingCheckReport();
+    if (isRejectedCommandRefreshStage(completedStage)) {
+        if (!report->canTakeoff() || !report->canArm()) {
+            _showTakeoffHealthFailure(vehicle, report->takeoffFailureMessage());
+        } else {
+            const QString commandName = completedStage == PX4TakeoffHealthCheckStage::RefreshAfterArmRejection
+                ? tr("automatic arming")
+                : tr("the takeoff command");
+            _showTakeoffHealthFailure(
+                vehicle,
+                tr("The vehicle rejected %1, but the refreshed preflight report did not identify a blocking item.")
+                    .arg(commandName)
+                    + QStringLiteral("\n") + _basicTakeoffStatusDetails(vehicle));
+        }
+        return;
+    }
+
+    if (!report->canTakeoff()
+        || (completedStage == PX4TakeoffHealthCheckStage::RefreshBeforeArm && !report->canArm())) {
+        _showTakeoffHealthFailure(vehicle, report->takeoffFailureMessage());
+        return;
+    }
+
+    _continueTakeoff(vehicle, completedStage, takeoffAltRel);
+}
+
+void PX4FirmwarePlugin::_takeoffHealthCheckTimedOut(Vehicle* vehicle)
+{
+    auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+    if (!instanceData
+        || !isTakeoffHealthRefreshStage(instanceData->takeoffHealthCheckStage)) {
+        return;
+    }
+
+    instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::Idle;
+    _showTakeoffHealthFailure(vehicle, _basicTakeoffHealthFailure(vehicle));
+}
+
+void PX4FirmwarePlugin::_continueTakeoff(Vehicle* vehicle,
+                                         PX4TakeoffHealthCheckStage completedStage,
+                                         double takeoffAltRel)
+{
+    if (completedStage == PX4TakeoffHealthCheckStage::RefreshBeforeTakeoff) {
+        _sendTakeoffCommand(vehicle, takeoffAltRel);
+    } else if (completedStage == PX4TakeoffHealthCheckStage::RefreshBeforeArm && !vehicle->armed()) {
+        auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+        if (!instanceData) {
+            return;
+        }
+        instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::WaitingForArmAcceptance;
+        vehicle->setArmed(true, false);
+    }
+}
+
+void PX4FirmwarePlugin::_sendTakeoffCommand(Vehicle* vehicle, double takeoffAltRel)
+{
+    const double vehicleAltitudeAMSL = vehicle->altitudeAMSL()->rawValue().toDouble();
+    if (qIsNaN(vehicleAltitudeAMSL)) {
+        _showTakeoffHealthFailure(vehicle, tr("No valid local position/GPS accuracy check failed."));
+        return;
+    }
+
+    auto* instanceData = qobject_cast<PX4FirmwarePluginInstanceData*>(vehicle->firmwarePluginInstanceData());
+    if (!instanceData) {
+        return;
+    }
+
+    const double takeoffAltAMSL = takeoffAltRel + vehicleAltitudeAMSL;
+    instanceData->takeoffHealthCheckStage = PX4TakeoffHealthCheckStage::WaitingForTakeoffAcceptance;
+
     vehicle->sendMavCommand(
         vehicle->defaultComponentId(),
         MAV_CMD_NAV_TAKEOFF,
-        true,                                   // show error is fails
+        false,                                  // handled by the takeoff health state machine
         -1,                                     // No pitch requested
         0, 0,                                   // param 2-4 unused
         NAN, NAN, NAN,                          // No yaw, lat, lon
         static_cast<float>(takeoffAltAMSL));    // AMSL altitude
+}
+
+void PX4FirmwarePlugin::_showTakeoffHealthFailure(Vehicle* vehicle, const QString& reason)
+{
+    qgcApp()->showAppMessage(tr("Takeoff blocked for Vehicle %1:\n%2").arg(vehicle->id()).arg(reason));
+}
+
+QString PX4FirmwarePlugin::_basicTakeoffHealthFailure(Vehicle* vehicle) const
+{
+    QString message = tr("No valid local position/GPS accuracy check failed.");
+    message += QStringLiteral("\n\u2022 ")
+        + tr("The flight controller did not provide a current detailed preflight result; automatic arming was not attempted.");
+
+    const QString statusDetails = _basicTakeoffStatusDetails(vehicle);
+    if (!statusDetails.isEmpty()) {
+        message += QStringLiteral("\n") + statusDetails;
+    }
+    return message;
+}
+
+QString PX4FirmwarePlugin::_basicTakeoffStatusDetails(Vehicle* vehicle) const
+{
+    QStringList details;
+    auto* gps = qobject_cast<VehicleGPSFactGroup*>(vehicle->gpsFactGroup());
+
+    if (gps) {
+        const int fixType = gps->lock()->rawValue().toInt();
+        const int satelliteCount = gps->count()->rawValue().toInt();
+
+        if (fixType < GPS_FIX_TYPE_3D_FIX) {
+            details.append(tr("No live 3D GPS fix (fix type %1, %2 satellites).")
+                               .arg(fixType)
+                               .arg(satelliteCount));
+        } else {
+            details.append(tr("GPS reports fix type %1 with %2 satellites, but a valid EKF local position was not confirmed.")
+                               .arg(fixType)
+                               .arg(satelliteCount));
+        }
+
+        const double hdop = gps->hdop()->rawValue().toDouble();
+        if (!qIsNaN(hdop)) {
+            details.append(tr("GPS HDOP: %1.").arg(hdop, 0, 'f', 1));
+        }
+    }
+
+    if (qIsNaN(vehicle->altitudeAMSL()->rawValue().toDouble())) {
+        details.append(tr("No valid vehicle position/altitude is available."));
+    }
+
+    QString message;
+    for (const QString& detail : details) {
+        if (!message.isEmpty()) {
+            message += QStringLiteral("\n");
+        }
+        message += QStringLiteral("\u2022 ") + detail;
+    }
+    return message;
 }
 
 double PX4FirmwarePlugin::maximumHorizontalSpeedMultirotor(Vehicle* vehicle)
@@ -437,6 +703,40 @@ double PX4FirmwarePlugin::maximumHorizontalSpeedMultirotor(Vehicle* vehicle)
     }
 
     return FirmwarePlugin::maximumHorizontalSpeedMultirotor(vehicle);
+}
+
+double PX4FirmwarePlugin::guidedTakeoffSpeed(Vehicle* vehicle)
+{
+    static const QString takeoffSpeedParam(QStringLiteral("MPC_TKO_SPEED"));
+
+    if (vehicle->parameterManager()->parameterExists(FactSystem::defaultComponentId, takeoffSpeedParam)) {
+        return vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, takeoffSpeedParam)->rawValue().toDouble();
+    }
+
+    return FirmwarePlugin::guidedTakeoffSpeed(vehicle);
+}
+
+bool PX4FirmwarePlugin::setGuidedTakeoffSpeed(Vehicle* vehicle, double metersSecond)
+{
+    static const QString takeoffSpeedParam(QStringLiteral("MPC_TKO_SPEED"));
+
+    if (!qIsFinite(metersSecond)
+        || !vehicle->parameterManager()->parameterExists(FactSystem::defaultComponentId, takeoffSpeedParam)) {
+        return false;
+    }
+
+    Fact* speedFact = vehicle->parameterManager()->getParameter(FactSystem::defaultComponentId, takeoffSpeedParam);
+    if (!speedFact->metaData()) {
+        return false;
+    }
+    const double minimum = speedFact->metaData()->rawMin().toDouble();
+    const double maximum = speedFact->metaData()->rawMax().toDouble();
+    if (metersSecond < minimum || metersSecond > maximum) {
+        return false;
+    }
+
+    speedFact->setRawValue(metersSecond);
+    return true;
 }
 
 double PX4FirmwarePlugin::maximumEquivalentAirspeed(Vehicle* vehicle)

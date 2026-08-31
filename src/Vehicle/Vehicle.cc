@@ -1688,13 +1688,15 @@ EventHandler& Vehicle::_eventHandler(uint8_t compid)
         connect(eventHandler.data(), &EventHandler::healthAndArmingChecksUpdated, this, [compid, this]() {
             const QSharedPointer<EventHandler>& eventHandler = _events[compid];
             _healthAndArmingCheckReport.update(compid, eventHandler->healthAndArmingCheckResults(),
-                    eventHandler->getModeGroup(_has_custom_mode_user_intention ? _custom_mode_user_intention : _custom_mode));
+                    eventHandler->getModeGroup(_has_custom_mode_user_intention ? _custom_mode_user_intention : _custom_mode),
+                    true);
         });
         connect(this, &Vehicle::flightModeChanged, this, [compid, this]() {
             const QSharedPointer<EventHandler>& eventHandler = _events[compid];
             if (eventHandler->healthAndArmingCheckResultsValid()) {
                 _healthAndArmingCheckReport.update(compid, eventHandler->healthAndArmingCheckResults(),
-                                                   eventHandler->getModeGroup(_has_custom_mode_user_intention ? _custom_mode_user_intention : _custom_mode));
+                                                   eventHandler->getModeGroup(_has_custom_mode_user_intention ? _custom_mode_user_intention : _custom_mode),
+                                                   false);
             }
         });
     }
@@ -2735,6 +2737,16 @@ void Vehicle::guidedModeTakeoff(double altitudeRelative)
 double Vehicle::minimumTakeoffAltitude()
 {
     return _firmwarePlugin->minimumTakeoffAltitude(this);
+}
+
+double Vehicle::guidedTakeoffSpeed()
+{
+    return _firmwarePlugin->guidedTakeoffSpeed(this);
+}
+
+bool Vehicle::setGuidedTakeoffSpeed(double metersSecond)
+{
+    return _firmwarePlugin->setGuidedTakeoffSpeed(this, metersSecond);
 }
 
 double Vehicle::maximumHorizontalSpeedMultirotor()

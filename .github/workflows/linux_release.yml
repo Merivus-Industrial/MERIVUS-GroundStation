@@ -18,26 +18,28 @@ defaults:
 env:
   SOURCE_DIR:   ${{ github.workspace }}
   QT_VERSION:   5.15.2
-  ARTIFACT:     QGroundControl.AppImage
+  ARTIFACT:     MERIVUS.AppImage
+  QGC_CUSTOM_APP_NAME: MERIVUS
+  QGC_CUSTOM_GENERIC_NAME: MERIVUS Ground Control
+  QGC_CUSTOM_BINARY_NAME: MERIVUS
+  QGC_CUSTOM_LINUX_START_SH: ${{ github.workspace }}/custom/deploy/qgroundcontrol-start.sh
+  QGC_CUSTOM_APP_ICON: ${{ github.workspace }}/custom/res/Images/CustomAppIcon.png
+  QGC_CUSTOM_APP_ICON_NAME: CustomAppIcon
   BUILD_TYPE:   ${{ fromJSON('["DailyBuild", "StableBuild"]')[ github.ref_type == 'tag' || contains(github.ref, 'Stable_' ) ] }}
 
 jobs:
   build:
-    runs-on:  ubuntu-20.04
+    runs-on:  ubuntu-24.04
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
         with:
           submodules: recursive
-
-      - name: Get all tags for correct version determination
-        working-directory:  ${{ github.workspace }}
-        run: |
-          git fetch --all --tags -f --depth 1
+          fetch-depth: 0
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version:      ${{ env.QT_VERSION }}
           host:         linux
@@ -60,10 +62,10 @@ jobs:
 
       - name: Prepare ccache timestamp
         id: ccache_cache_timestamp
-        run: echo "name=timestamp::$(date --utc +'%Y-%m-%d-%H\;%M\;%S')" >> $GITHUB_OUTPUT
+        run: echo "timestamp=$(date --utc +'%Y%m%d%H%M%S')" >> "$GITHUB_OUTPUT"
 
       - name: ccache cache files
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path:         ~/.ccache
           key:          ${{ runner.os }}-ccache-${{steps.ccache_cache_timestamp.outputs.timestamp}}
@@ -95,7 +97,7 @@ jobs:
         run:                ${SOURCE_DIR}/deploy/create_linux_appimage.sh ${SOURCE_DIR} ./staging ./package;
 
       - name: Save artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT }}
           path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}

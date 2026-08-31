@@ -83,4 +83,4 @@ QGC Plan View 只有一个当前编辑器。切换活动车辆不会中止原车
 - 本功能仍使用 QGC `Vehicle` / `MissionManager` 的人工确认链路，不接入 AI proposal 执行。
 - 编队和临时任务默认可用，但编队仍要求明确框选完整 UAV-1～UAV-6 并通过人工确认。
 - 编队启动/停止具备标准 MAV_CMD ACK，但 ACK 只表示命令参数已被飞控接收；它不等于编队已起飞、已建立或已完成，验收仍需观察每架机状态和轨迹。
-- 配套机载源码位于 `E:\MERIVUS\FirmwarePX4\PX4\PX4-Autopilot`，Pixhawk 6C Mini 构建目标是 `px4_fmu-v6c_default`。真实飞行验收仍必须使用逐机状态观察、拆桨/系留等现场安全流程，并由人员手动执行。
+- 配套机载源码位于 `E:\MERIVUS\FirmwarePX4`，Pixhawk 6C Mini 构建目标是 `px4_fmu-v6c_default`。真实飞行验收仍必须使用逐机状态观察、拆桨/系留等现场安全流程，并由人员手动执行。

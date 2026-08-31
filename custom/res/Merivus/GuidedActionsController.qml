@@ -37,6 +37,7 @@ Item {
     property var guidedValueSlider
     property var orbitMapCircle
     property var selectedVehicleIds: []
+    property real defaultTakeoffAltitudeMeters: 10
     readonly property bool swarmModeEnabled: _swarm.swarmModeEnabled
     readonly property bool formationActive: _swarm.formationActive
     readonly property bool formationBusy: _swarm.formationBusy
@@ -205,6 +206,7 @@ Item {
     }
 
     function _snapshotVehicleIds(ids) {
+        // 冻结确认时的目标，避免对话框停留期间的 UI 选择变化扩大或替换执行范围。
         var snapshot = []
         if (!ids || ids.length === undefined) return snapshot
         for (var i = 0; i < ids.length; i++) snapshot.push(Number(ids[i]))
@@ -252,7 +254,7 @@ Item {
         if (actionCode === actionTakeoff) {
                 var takeoffMinimum = _takeoffMinimumForTargets(_actionData)
                 guidedValueSlider.setMinVal(takeoffMinimum)
-                guidedValueSlider.setValue(takeoffMinimum)
+                guidedValueSlider.setValue(Math.max(takeoffMinimum, defaultTakeoffAltitudeMeters))
                 guidedValueSlider.setDisplayText("Height")
         } else if (actionCode === actionChangeSpeed) {
             guidedValueSlider.setIsSpeedSlider(true)
@@ -428,7 +430,7 @@ Item {
         guidedValueSlider.visible =    false
     }
 
-    // Called when an action is about to be executed in order to confirm
+    // 所有 MERIVUS 批量动作先在这里冻结目标并进入人工确认；确认内容与执行数据同源。
     function confirmAction(actionCode, actionData, mapIndicator) {
         var showImmediate = true
         closeAll()
@@ -655,7 +657,7 @@ Item {
         confirmDialog.show(showImmediate)
     }
 
-    // Executes the specified action
+    // 这里只执行 Guided 确认框产生的人工动作；AI Assistant 没有调用此函数的路径。
     function executeAction(actionCode, actionData, sliderOutputValue, optionChecked) {
         var i;
         var rgVehicle;

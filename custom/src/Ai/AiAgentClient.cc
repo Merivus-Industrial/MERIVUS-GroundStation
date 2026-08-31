@@ -44,6 +44,7 @@ void AiAgentClient::setAgentEnabled(bool enabled)
 
 void AiAgentClient::setEndpoint(const QString& endpoint)
 {
+    // QGC 只信任本机 sidecar；即使配置传入其他主机，也不能把会话或遥测摘要发出本机。
     QUrl requested(endpoint.trimmed());
     if (!requested.isValid() || requested.scheme() != QStringLiteral("http") || requested.host() != QStringLiteral("127.0.0.1")) {
         _setLastError(QStringLiteral("Agent地址被拒绝：仅允许 http://127.0.0.1:8765"));
@@ -318,6 +319,7 @@ void AiAgentClient::_handleChatReply(QNetworkReply* reply, const QByteArray& bod
     const QJsonValue proposalValue = object.value(QStringLiteral("proposal"));
     QVariant proposal;
     if (proposalValue.isObject()) {
+        // Provider 字段均视为不可信：结构、风险和权限必须由 QGC 本地重新判定。
         ActionProposal evaluatedProposal = AiSchemaValidator::validate(
             requestId,
             proposalValue,

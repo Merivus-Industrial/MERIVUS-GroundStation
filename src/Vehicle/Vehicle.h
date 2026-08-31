@@ -364,6 +364,12 @@ public:
     /// @return The minimum takeoff altitude (relative) for guided takeoff.
     Q_INVOKABLE double minimumTakeoffAltitude();
 
+    /// @return The configured guided takeoff climb speed, or NAN when unsupported.
+    Q_INVOKABLE double guidedTakeoffSpeed();
+
+    /// Queue a firmware-specific guided takeoff climb speed parameter write.
+    Q_INVOKABLE bool setGuidedTakeoffSpeed(double metersSecond);
+
     /// @return Maximum horizontal speed multirotor.
     Q_INVOKABLE double maximumHorizontalSpeedMultirotor();
 

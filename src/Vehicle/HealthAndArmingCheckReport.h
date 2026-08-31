@@ -10,6 +10,7 @@
 #pragma once
 
 #include <QObject>
+#include <QStringList>
 
 #include <QmlObjectListModel.h>
 #include <libevents/libs/cpp/parse/health_and_arming_checks.h>
@@ -64,12 +65,16 @@ public:
     bool canTakeoff() const { return _canTakeoff; }
     bool canStartMission() const { return _canStartMission; }
     bool hasWarningsOrErrors() const { return _hasWarningsOrErrors; }
+    quint64 updateSequence() const { return _updateSequence; }
+
+    QString takeoffFailureMessage(int maximumReasons = 3) const;
 
     const QString& gpsState() const { return _gpsState; }
 
     QmlObjectListModel* problemsForCurrentMode() { return _problemsForCurrentMode; }
 
-    void update(uint8_t compid, const events::HealthAndArmingChecks::Results& results, int flightModeGroup);
+    void update(uint8_t compid, const events::HealthAndArmingChecks::Results& results,
+                int flightModeGroup, bool healthResultsUpdated);
 
     void setModeGroups(int takeoffModeGroup, int missionModeGroup);
 
@@ -83,10 +88,12 @@ private:
     bool _canStartMission{true};
     bool _hasWarningsOrErrors{false};
     QString _gpsState{};
+    quint64 _updateSequence{0};
+    QStringList _takeoffFailureReasons;
+    bool _takeoffHasPositionFailure{false};
 
     int _takeoffModeGroup{-1};
     int _missionModeGroup{-1};
 
     QmlObjectListModel* _problemsForCurrentMode = new QmlObjectListModel(this); ///< list of HealthAndArmingCheckProblem*
 };
-

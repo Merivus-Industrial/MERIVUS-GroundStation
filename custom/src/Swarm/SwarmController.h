@@ -16,6 +16,8 @@ class Vehicle;
 class MissionItem;
 class LinkInterface;
 
+/// MERIVUS 人工多机调度入口。QML 只能通过显式选择和确认调用本类，AI proposal
+/// 不接入这里；返回结果仅表示命令已安排或任务上传已启动，不表示飞行器已完成动作。
 class SwarmController : public QObject
 {
     Q_OBJECT
@@ -76,6 +78,7 @@ private:
         Aborting,
     };
 
+    // 临时任务必须保留逐机阶段，避免把“上传完成”“执行完成”和“清理完成”混为一谈。
     struct TemporaryMissionState {
         Vehicle* vehicle = nullptr;
         QGeoCoordinate finalCoordinate;
@@ -143,8 +146,7 @@ private:
     QSet<int> _temporaryMissionConnections;
     QSet<int> _staleTemporaryMissionIds;
     QTimer _temporaryMissionTimer;
-    // Product defaults: formation control and Shift temporary mission execution
-    // are available in both SITL and supported PX4 hardware builds.
+    // 产品契约：支持的 PX4 实机与 SITL 使用相同能力开关，不能依赖运行环境偶然启用。
     static constexpr bool kFormationFeatureEnabled = true;
     static constexpr bool kAutoStartMissionFeatureEnabled = true;
     static constexpr uint8_t kSwarmProtocolVersion = 2;
