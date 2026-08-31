@@ -61,12 +61,16 @@ jobs:
           ndk-version: r21e
           add-to-path: false
 
-      - name: Remove Android SDKs to force usage of android-33 only
+      - name: Pin Android SDK platform to android-33
         run: |
-            ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --uninstall "platforms;android-33-ext5"
-            ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --uninstall "platforms;android-33-ext4"
-            ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --uninstall "platforms;android-34"
-            ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --uninstall "platforms;android-34-ext8"
+            sdkmanager="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+            "${sdkmanager}" "platforms;android-33"
+            for platform_dir in "${ANDROID_SDK_ROOT}"/platforms/*; do
+              platform="$(basename "${platform_dir}")"
+              if [[ "${platform}" != "android-33" ]]; then
+                "${sdkmanager}" --uninstall "platforms;${platform}"
+              fi
+            done
 
       - name: Set up Java 11 for Gradle
         uses: actions/setup-java@v5
