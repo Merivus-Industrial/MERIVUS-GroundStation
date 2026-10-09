@@ -2,6 +2,10 @@
 
 文档只维护当前实现、稳定契约和可重复操作。版本历史由 Git、发布记录和 PR 保存，不在仓库中复制源码、构建产物或阶段性排障快照。
 
+- [系统化文档入口](README.md)
+- [项目状态](PROJECT_STATUS.md)
+- [文档审计](DOCUMENT_AUDIT.md)
+
 ## 接手入口
 
 - [工程交接入口](handoff/README.md)
@@ -12,6 +16,13 @@
 
 ## 架构与安全契约
 
+- [系统图](architecture/SYSTEM_MAP.md)
+- [代码责任边界](architecture/CODE_OWNERSHIP_MAP.md)
+- [数据流](architecture/DATA_FLOWS.md)
+- [关键调用链](architecture/CALL_CHAINS.md)
+- [MAVLink 到 UI 数据流](architecture/MAVLINK_UI_DATA_FLOW.md)
+- [Fly View 数据流](architecture/FLIGHT_VIEW_DATA_FLOW.md)
+- [FTC 遥测契约](architecture/FTC_TELEMETRY_CONTRACT.md)
 - [接口边界](architecture/INTERFACE_CONTRACTS.md)
 - [安全边界](architecture/SAFETY_BOUNDARIES.md)
 - [硬件集成边界](architecture/HARDWARE_INTEGRATION.md)
@@ -25,8 +36,16 @@
 - [AI 问答与指令分离](architecture/AI_QA_INTENT_SEPARATION.md)
 - [AI 模型稳定性](architecture/AI_MODEL_STABILITY.md)
 
+## 设计决策
+
+- [ADR-0001：植保区域覆盖飞行初版方案（待实现与验证）](adr/0001-plant-protection-area-coverage.md)
+
 ## 开发与验证
 
+- [构建与生成入口](development/BUILD.md)
+- [变更影响指南](development/CHANGE_IMPACT_GUIDE.md)
+- [重构候选](development/REFACTOR_CANDIDATES.md)
+- [测试矩阵](testing/TEST_MATRIX.md)
 - [Windows 构建](development/BUILD_WINDOWS.md)
 - [Agent 开发](development/AGENT_DEVELOPMENT.md)
 - [AI GUI 手工烟测清单](development/AI_GUI_SMOKE_CHECKLIST.md)
@@ -42,6 +61,13 @@
 - [重量与电源预算](hardware/WEIGHT_AND_POWER_BUDGET.md)
 - [版本变更记录](releases/CHANGELOG.md)
 - [`0.1.0-dev.1` 阶段说明](releases/0.1.0-dev.1.md)
+
+## 代码索引
+
+- [MAVLink 索引](reference/MAVLINK_INDEX.md)
+- [Vehicle 模型索引](reference/VEHICLE_MODEL_INDEX.md)
+- [QML 组件索引](reference/QML_COMPONENT_INDEX.md)
+- [术语表](reference/GLOSSARY.md)
 
 ## 仓库卫生
 

@@ -33,7 +33,7 @@ foreach ($case in $cases) {
 }
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..')
-$currentDescribe = (& git -C $repoRoot describe --always --tags).Trim()
+$currentDescribe = (& git -C $repoRoot describe --always --tags --match v[0-9]*).Trim()
 $currentVersion = ConvertTo-AndroidBuildVersion -Describe $currentDescribe
 
 Write-Output "Version contract passed: $currentDescribe -> $currentVersion"

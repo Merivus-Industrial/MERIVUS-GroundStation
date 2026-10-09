@@ -140,3 +140,8 @@ agent/.models/
 _codex_backup_*/
 **/_codex_backup_*/
 *.bak
+
+# Local code graph and flight evidence
+/.gitnexus/
+*.ulg
+*.ulog

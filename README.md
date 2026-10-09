@@ -1,133 +1,69 @@
-# MERIVUS 无人机多机调度系统指挥中心
+# MERIVUS GroundStation
 
-MERIVUS 是基于 QGroundControl / PX4 / 4G / RTK / 本机 AI Agent 的无人机多机调度地面站平台。本仓库保留 QGroundControl 上游工程结构，并在 `custom/`、`agent/`、`docs/`、`schemas/` 和 `configs/` 中沉淀 MERIVUS 的定制能力。
+基于 QGroundControl 的多无人机调度地面站，由 **[Ale-xl](https://github.com/Ale-xl)** 维护。配套飞控为 [MERIVUS-FirmwarePX4](https://github.com/Ale-xl/MERIVUS-FirmwarePX4)。本仓库包含界面、人工多机调度、FTC 遥测展示，以及只提供建议的本机 AI Agent。
 
-> 当前版本：`0.1.0-dev.1`（阶段性初版 / 开发测试版，2026-07-17）。该版本用于本地开发、SITL 与界面验证，不是生产发布版，不应用于无人值守或未经安全评审的真实飞行。
+> 当前为开发测试版本 `0.1.0-dev.1`，不是生产发行版。已有代码、历史验证和本次验证是不同状态；FTC 主动控制与植保覆盖作业均不能因界面或方案存在而视为已经验收。
 
-版本变更见 [MERIVUS 版本变更记录](docs/releases/CHANGELOG.md)，本阶段完整说明见 [`0.1.0-dev.1` 阶段说明](docs/releases/0.1.0-dev.1.md)。
+## 当前能力与边界
 
-## 项目定位
+| 范围 | 当前内容 | 限制 |
+| --- | --- | --- |
+| 地面站 | QGC Custom Build、地图、飞行器选择、链路与状态展示 | 沿用 QGC/PX4 原生安全流程 |
+| 人工多机调度 | 明确目标的任务交互与编队协议 | 需要 Mock/SITL 和现场分阶段验证 |
+| FTC 遥测 | 四类自定义 MAVLink 消息、类型化后端、状态面板、协议和过期判断 | 只展示飞控报告，不代表主动控制已验证 |
+| 本机 AI Agent | FastAPI、Mock/Ollama、C++ 客户端与服务监管器、Schema/Policy 校验 | `ActionProposal` 保持 `executable=false`，不进入飞行执行链 |
+| 植保区域覆盖 | [ADR-0001 设计方案](docs/adr/0001-plant-protection-area-coverage.md) | 待实现与验证，不包含喷洒设备控制 |
 
-MERIVUS 面向多无人机协同作业场景，负责地面站 UI、链路状态展示、调度交互、任务预览、AI 辅助解释和本地安全建议。它不替代飞控，不绕过 PX4 / QGC 原生安全流程，也不让 LLM 直接控制无人机。
+AI/LLM 不发送 MAVLink、不修改 PX4 参数，也不调用 Vehicle 或 Swarm 的飞行动作入口。云设备网关、生产认证、GIS Safety Service、真实命令执行器及安装包签名尚未完成。
 
-```text
-操作者
-  -> MERIVUS 地面站
-  -> Local Agent / ActionProposal
-  -> QGC C++ Schema Validator / Local Policy
-  -> 仅展示和预览
+## 获取源码
+
+```sh
+git clone https://github.com/Ale-xl/MERIVUS-GroundStation.git GroundStation
+git clone --recursive https://github.com/Ale-xl/MERIVUS-FirmwarePX4.git FirmwarePX4
 ```
 
-当前 AI 链路不会进入：
+两个仓库建议放在同一父目录，便于交叉检查 FTC 协议和复现 MAVLink 生成。GroundStation 的当前 Git 树将第三方依赖作为源码快照跟踪，没有 Git 子模块；FirmwarePX4 使用锁定提交的子模块。依赖来源和上游版权按各目录许可证保留。
 
-```text
-ActionProposal -> Vehicle / MAVLink / Swarm / PX4
-```
+## 开发与验证
 
-## 当前已实现
-
-- QGC Custom Build 主界面与 MERIVUS 多机调度 UI。
-- QGC AI 面板与中文建议卡。
-- Python FastAPI Local Agent。
-- QGC C++ `AiAgentClient`。
-- `AiServiceSupervisor`，由 QGC 启动和守护本机 Agent。
-- PyInstaller Agent 打包与 Release staging。
-- Mock Provider 与 Ollama / `qwen3:8b` Provider。
-- Provider 设置 UI、Provider Ready/Error/Models 展示。
-- `ActionProposal`、Agent schema、QGC C++ schema 校验。
-- `AiCommandPolicy` 本地风险和策略判定。
-- QA/指令分离：解释类问题不误出建议卡。
-- 模型 few-shot / eval 指标优化。
-- 所有 AI proposal 当前均保持 `executable=false`。
-
-## 当前未实现
-
-- 云设备网关。
-- 用户认证和权限系统。
-- 数据库。
-- GIS Safety Service。
-- Media Service。
-- MCP。
-- 真实命令执行器。
-- 安装包签名。
-- 实机端到端验证。
-
-## 安全边界
-
-- LLM / Agent 不能直接控制无人机。
-- Agent 不发送 MAVLink。
-- Agent 不修改 PX4 参数。
-- Agent 不访问 Vehicle / Swarm / PX4 执行入口。
-- proposal 只是结构化建议，不代表执行结果。
-- QGC C++ 的 `AiSchemaValidator` 与 `AiCommandPolicy` 是当前 AI 链路最终安全边界。
-- 高风险动作只预览，不执行；当前没有 AI 真实飞行动作执行能力。
-
-## 仓库结构
-
-- `src/`：QGroundControl 上游主体代码。
-- `custom/`：MERIVUS QGC Custom Build 入口、QML、资源和 C++ 扩展。
-- `agent/`：MERIVUS Local Agent、Provider、schema、测试和打包 spec。
-- `docs/`：当前架构、开发、硬件、验证和安全边界文档。
-- `schemas/`：Agent request / response / ActionProposal JSON Schema 草案。
-- `configs/`：配置模板和策略示例。
-- `tools/dev/`：Windows 构建、Agent 打包和局部测试脚本。
-- `custom/tests/`、`agent/tests/`：本地策略和 Agent 自动化测试。
-
-更多文档入口见 [docs/INDEX.md](docs/INDEX.md)。
-
-## 快速开发与验证
-
-Windows 基线：
-
-- Qt 5.15.2 / MSVC2019_64 Qt Kit。
-- Visual Studio 2022 MSVC x64 工具链。
-- Python 3.11。
-- Ollama 与本机 `qwen3:8b`。
-
-Agent 单元测试：
+Windows 产品基线为 Qt 5.15.2 / MSVC2019_64 Qt Kit、Visual Studio 2022 x64 工具链和 Python 3.11。环境与构建入口见 [Windows 构建说明](docs/development/BUILD_WINDOWS.md) 和 [构建与生成](docs/development/BUILD.md)。
 
 ```powershell
+# 静态契约检查，不连接真实飞机
+pwsh -File tools/dev/test-ftc-telemetry-contract.ps1
+pwsh -File tools/dev/test-field-telemetry-contract.ps1
+pwsh -File tools/dev/test-takeoff-health-contract.ps1
+pwsh -File tools/dev/test-sitl-swarm-task-isolation.ps1
+pwsh -File tools/dev/test-version-contract.ps1
+
+# 配置好 Python 测试环境后执行 Agent 测试
 cd agent
 python -m pytest
 ```
 
-QGC AI 策略测试：
+完整构建入口：`tools/dev/build-merivus.ps1 -Configuration Release`。FTC 后端单元测试见 [test/FTC](test/FTC/README.md)。真实模型评估需显式选择 Provider，不由默认验证自动调用。
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/dev/test-ai-intent-policy.ps1
-```
+## 仓库结构
 
-Agent Release 打包：
+| 路径 | 职责 |
+| --- | --- |
+| `src/`、`libs/` | QGC 主体与第三方依赖源码 |
+| `custom/` | MERIVUS 界面、C++ 扩展、人工调度与策略测试 |
+| `agent/` | 本机 AI 服务、Provider、测试与打包 |
+| `schemas/`、`configs/` | 协议源文件、JSON Schema 和配置模板 |
+| `tools/dev/`、`test/FTC/` | 构建、协议生成、静态检查与后端测试 |
+| `docs/` | 当前架构、接口、设计决策、开发和验证说明 |
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/dev/build-agent.ps1 -Configuration Release
-```
+## 文档与贡献
 
-MERIVUS Release 构建：
+- [文档索引](docs/INDEX.md) · [工程交接入口](docs/handoff/README.md)
+- [当前状态](docs/architecture/CURRENT_STATE.md) · [模块状态](docs/PROJECT_STATUS.md)
+- [FTC 遥测契约](docs/architecture/FTC_TELEMETRY_CONTRACT.md) · [测试矩阵](docs/testing/TEST_MATRIX.md)
+- [贡献指南](CONTRIBUTING.md) · [版本记录](docs/releases/CHANGELOG.md)
 
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/dev/build-merivus.ps1 -Configuration Release
-```
-
-本机真实模型评估必须显式 opt-in：
-
-```powershell
-python agent/tools/run_model_eval.py --provider ollama --model qwen3:8b
-```
-
-## 敏感文件与产物
-
-不要提交：
-
-- `.env`、Token、API Key、账号密码。
-- PDF、DOCX、Excel、截图、视频。
-- Ollama 模型、模型权重、本地模型目录。
-- `build/`、`dist/`、`staging/`、`.pytest_cache/`、`__pycache__/`。
-- RTSP 凭据、物联网卡信息、真实设备凭据。
-- 真实飞行日志或生产坐标。
-
-仓库应只提交源码、文档、schema、示例配置和必要资源。
+本仓库延续原 `Ale-xl/MERIVUS` 历史与 PR 记录，产品导入起点为 `b3d6659`。`.mailmap` 统一维护者旧身份的显示名称，保留原提交 SHA；具体归属边界见贡献指南。禁止提交真实凭据、生产坐标、飞行日志、模型权重、厂商原始资料和构建产物。
 
 ## 许可证与上游
 
-MERIVUS 基于开源 QGroundControl 二次开发，并保留上游项目和第三方依赖的许可证约束。相关规则见 [COPYING.md](COPYING.md) 与源文件中的许可证声明。
+基于 [QGroundControl](https://github.com/mavlink/qgroundcontrol) 二次开发，保留上游和第三方版权、许可证约束。产品历史始于源码快照，不能把快照导入作者当作全部源码作者。见 [COPYING.md](COPYING.md) 与各源文件声明。

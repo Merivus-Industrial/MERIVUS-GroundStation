@@ -2,6 +2,12 @@
 
 感谢你关注 MERIVUS。MERIVUS 是基于开源 QGroundControl 技术体系二次开发的多无人机调度地面站，贡献内容应同时尊重上游许可证、项目架构边界和飞行安全要求。
 
+## 历史与作者
+
+本仓库由 [Ale-xl](https://github.com/Ale-xl) 维护，延续原 `Ale-xl/MERIVUS` 的提交和 PR 记录。产品历史从 `b3d6659` 的 QGroundControl 源码快照开始；上游和第三方代码按各自许可证保留作者，不宣称快照是维护者原创。
+
+`.mailmap` 将维护者的 `Merivus-Industrial`、`ALE` 等旧身份统一显示为 `Ale-xl`，但不改写原始提交或 SHA。GitHub 账户贡献归属仍取决于平台对原始邮箱的识别；维护者的新提交使用 `Ale-xl <239906286+Ale-xl@users.noreply.github.com>`。其他贡献者应使用自己的身份。
+
 ## 贡献范围
 
 欢迎围绕以下方向贡献：
@@ -40,13 +46,14 @@
 建议工作流：
 
 ```bash
-git pull --rebase
+git switch main
+git pull --ff-only
 git checkout -b feature/short-description
 # 修改与验证
 git status
 git add <files>
 git commit -m "简要说明本次修改"
-git push
+git push -u origin HEAD
 ```
 
 提交说明建议包含：

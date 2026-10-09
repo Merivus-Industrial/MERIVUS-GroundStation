@@ -212,6 +212,8 @@
 		<file alias="QGroundControl/FlightDisplay/FlyViewInstrumentPanel.qml">../src/FlightDisplay/FlyViewInstrumentPanel.qml</file>
 		<file alias="QGroundControl/FlightDisplay/CommandCenterOverlay.qml">res/Merivus/CommandCenterOverlay.qml</file>
 		<file alias="QGroundControl/FlightDisplay/MerivusToolTip.qml">res/Merivus/MerivusToolTip.qml</file>
+		<file alias="QGroundControl/FlightDisplay/FtcStatusPalette.qml">res/Merivus/FtcStatusPalette.qml</file>
+		<file alias="QGroundControl/FlightDisplay/FtcStatusPanel.qml">res/Merivus/FtcStatusPanel.qml</file>
 		<file alias="QGroundControl/FlightDisplay/ai-nine-star.svg">res/Merivus/ai-nine-star.svg</file>
 		<file alias="QGroundControl/FlightDisplay/FlyViewMap.qml">res/Merivus/FlyViewMap.qml</file>
 		<file alias="QGroundControl/FlightDisplay/FlyViewMissionCompleteDialog.qml">../src/FlightDisplay/FlyViewMissionCompleteDialog.qml</file>
@@ -365,4 +367,3 @@
 		<file alias="Arduplane.params.ftp.bin">../src/comm/Mocklink.Arduplane.params.ftp.bin</file>
 	</qresource>
 </RCC>
-

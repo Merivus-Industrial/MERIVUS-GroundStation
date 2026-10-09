@@ -65,6 +65,18 @@ python -m pytest
 powershell -ExecutionPolicy Bypass -File tools/dev/test-ai-intent-policy.ps1
 ```
 
+## Troubleshooting：LNK1104 无法打开 MERIVUS.exe
+
+症状：链接阶段报告 `LNK1104: cannot open file '...\staging\MERIVUS.exe'`。
+
+已确认的一种原因是上一轮 `MERIVUS.exe` 仍在运行，Windows 因而锁定 staging 中的目标文件，linker 无法覆盖它。先停止 Qt Creator 中正在运行的 MERIVUS，再重新 build。必要时在 PowerShell 中执行：
+
+```powershell
+taskkill /F /IM MERIVUS.exe
+```
+
+不要修改项目代码规避 Windows 文件锁，也不要在 qmake 或构建脚本中自动强制结束进程。`QGCButton/QGCLabel M300` 是 Qt Creator Code Model 误报；`LNK4099` 是第三方 PDB 警告；`C4244/C4267/C4996` 属于上游或第三方 warning，它们都不是这次 LNK1104 的根因，不要为清空 Problems 面板修改第三方源码。
+
 ## 注意事项
 
 - 不提交 `build/`、`agent/build/`、`agent/dist/`、`staging/`。
