@@ -54,7 +54,7 @@ isEmpty(MAVLINK_CONF) {
         MAVLINK_CONF = $$fromfile(user_config.pri, MAVLINK_CONF)
         message($$sprintf("Using user-supplied mavlink dialect '%1' specified in user_config.pri", $$MAVLINK_CONF))
     } else {
-        MAVLINK_CONF = all
+        MAVLINK_CONF = merivus
         message($$sprintf("Using MAVLink dialect '%1'.", $$MAVLINK_CONF))
     }
 }

@@ -100,7 +100,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ env.ARTIFACT }}
-          path: ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
+          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}
+            ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}.sha256
+            ${{ runner.temp }}/shadow_build_dir/package/${{ env.ARTIFACT }}.build-info
 
       - name: Upload build to S3 Bucket
         if:                 github.event_name == 'push'

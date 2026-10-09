@@ -30,6 +30,11 @@ FlightMap {
         id: swarmController
     }
 
+    ReviewRangeController {
+        id: reviewController
+        vehicle: _root._activeVehicle
+    }
+
     QGCPalette { id: qgcPal; colorGroupEnabled: true }
 
     // ============================================================================
@@ -40,6 +45,7 @@ FlightMap {
     planView:                   false
     zoomLevel:                  QGroundControl.flightMapZoom
     center:                     QGroundControl.flightMapPosition
+    tilt:                       reviewController.inspecting ? 50 : 0
 
     // 画中画 (PiP) 状态管理
     property Item pipState: _pipState
@@ -805,6 +811,7 @@ FlightMap {
 
     // 全局拖拽与点击事件分流层
     MouseArea {
+        enabled: !reviewController.inspecting
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         hoverEnabled: false
@@ -1267,6 +1274,36 @@ FlightMap {
             }
         }
     }
+    MapCircle {
+        center: reviewController.anchor
+        radius: reviewController.rangeAvailable ? reviewController.radiusMeters : 0
+        visible: reviewController.rangeAvailable
+        color: reviewController.energyOnly ? "#1cd8b56a" : "#2639d5ad"
+        border.color: reviewController.energyOnly ? "transparent" : "#39d5ad"
+        border.width: reviewController.energyOnly ? 0 : 3
+    }
+
+    function reviewDashSegments() {
+        if (!reviewController.rangeAvailable || !reviewController.energyOnly) return []
+        var result = []
+        for (var azimuth = 0; azimuth < 360; azimuth += 20) {
+            result.push([
+                reviewController.anchor.atDistanceAndAzimuth(reviewController.radiusMeters, azimuth),
+                reviewController.anchor.atDistanceAndAzimuth(reviewController.radiusMeters, azimuth + 10)
+            ])
+        }
+        return result
+    }
+
+    MapItemView {
+        model: _root.reviewDashSegments()
+        delegate: MapPolyline {
+            path: modelData
+            line.width: 3
+            line.color: "#d8b56a"
+        }
+    }
+
     CommandCenterOverlay {
         id: commandCenterOverlay
         anchors.fill: parent
@@ -1276,6 +1313,8 @@ FlightMap {
         vehicles: QGroundControl.multiVehicleManager.vehicles
         activeVehicle: QGroundControl.multiVehicleManager.activeVehicle
         toolInsets: _root.toolInsets
+        mapControl: _root
+        reviewController: reviewController
 
         onVehicleSelectionRequested: _root.setVehicleSelection(vehicleId, selected)
         onVehicleFocusRequested: _root.focusVehicle(vehicleId)

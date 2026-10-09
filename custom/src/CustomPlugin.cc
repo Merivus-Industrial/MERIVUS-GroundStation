@@ -26,6 +26,8 @@
 #include "AiAgentClient.h"
 #include "AiServiceSupervisor.h"
 #include "Diagnostics/MerivusLinkDiagnostics.h"
+#include "Review/ReviewRangeController.h"
+#include "Review/ReviewVideoController.h"
 #include "SwarmController.h"
 
 QGC_LOGGING_CATEGORY(CustomLog, "CustomLog")
@@ -81,6 +83,8 @@ CustomPlugin::CustomPlugin(QGCApplication *app, QGCToolbox* toolbox)
     qmlRegisterType<AiAgentClient>("Merivus", 1, 0, "AiAgentClient");
     qmlRegisterType<AiServiceSupervisor>("Merivus", 1, 0, "AiServiceSupervisor");
     qmlRegisterType<MerivusLinkDiagnostics>("Merivus", 1, 0, "MerivusLinkDiagnostics");
+    qmlRegisterType<ReviewRangeController>("Merivus", 1, 0, "ReviewRangeController");
+    qmlRegisterType<ReviewVideoController>("Merivus", 1, 0, "ReviewVideoController");
     qmlRegisterType<SwarmController>("Merivus", 1, 0, "SwarmController");
     _options = new CustomOptions(this, this);
     _showAdvancedUI = false;
@@ -468,5 +472,3 @@ QQmlApplicationEngine* CustomPlugin::createQmlApplicationEngine(QObject* parent)
     qmlEngine->addImportPath("qrc:/Custom/Widgets");
     return qmlEngine;
 }
-
-
